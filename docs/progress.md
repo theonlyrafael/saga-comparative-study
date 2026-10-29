@@ -22,7 +22,7 @@ estava limpo. Não havia preparação em outras branches remotas; a branch local
 [Versões, fontes oficiais e checksums](environment.md). A comparação somente leitura
 com o protótipo está em [prototype-comparison.md](prototype-comparison.md).
 
-## Verificações executadas nesta nuvem Linux x64
+## Verificações do bootstrap original (Java 21 / Boot 4.1.2)
 
 | Verificação | Resultado observado |
 | --- | --- |
@@ -70,7 +70,7 @@ estão presentes, mas nenhum fluxo de publicação/consumo foi implementado ou t
 
 ## Limites e pendências
 
-- Windows/Git Bash, Docker Desktop e `mvnw.cmd` não foram executados neste Linux. O JDK 17.0.7 do computador do autor precisa coexistir com um JDK 21 selecionado para este repositório; o protótipo não precisa mudar.
+- Windows/Git Bash, Docker Desktop e `mvnw.cmd` não foram executados neste Linux. A configuração atual usa o JDK 17.0.7 já instalado pelo autor; o protótipo não precisa mudar.
 - API, entidades, contratos implementados, migrações de negócio, consumidores, Outbox/inbox, compensações e máquina de estados permanecem fora do escopo concluído.
 - Testes de domínio, idempotência, concorrência, recuperação de Saga e cenários C1–C6 não foram executados porque dependem dessas implementações e do protocolo-base ainda não fornecido.
 - OpenTelemetry, exportação para coletor e correlação por sagaId/orderId/operationId serão integrados com os fluxos; métricas e logs estruturados atuais não comprovam tracing distribuído.
@@ -84,9 +84,28 @@ e as entidades/constraints correspondentes, com testes de reservas e concorrênc
 em PostgreSQL. Depois implementar a API de ordens e os mecanismos assíncronos na
 sequência documentada. Não tratar este bootstrap como uma Saga funcional.
 
-A entrega está organizada em cinco commits com prefixos convencionais e assunto/
+A entrega inicial foi organizada em cinco commits com prefixos convencionais e assunto/
 descrição em português. Consulte os hashes definitivos com:
 
 ```bash
 git log --reverse --format='%h %s' d3de6f99fde99dc76ec2445c73afc16e03d9a764..chore/orchestrated-bootstrap
 ```
+
+## Ajuste posterior — Java 17 e Spring Boot 4.1.0
+
+A pedido do autor, o parent comum passou a usar Java 17 (`release=17`) e Spring
+Boot 4.1.0, alinhado ao protótipo e ao JDK 17.0.7 já instalado no computador.
+O guia anexado e o PDF foram preservados; esta decisão substitui a escolha Java 21
+na configuração executável e na documentação de uso.
+
+Validação desta alteração, em Linux com Temurin **17.0.7+7**:
+
+- `./mvnw clean verify`: sucesso no agregador e nos cinco serviços; zero testes Java, pois ainda não há suíte de domínio.
+- Cinco aplicações iniciadas com Java 17.0.7 e conectadas ao PostgreSQL e RabbitMQ.
+- Saúde, liveness, readiness e Prometheus: vinte verificações HTTP aprovadas.
+- Cinco conexões aos bancos próprios e vinte recusas de acesso cruzado confirmadas; schemas com apenas o histórico técnico Flyway.
+- Processos e contêineres encerrados após a validação, preservando volumes.
+
+Os testes de indisponibilidade descritos acima pertencem ao bootstrap original;
+não foram repetidos nesta alteração. Windows permanece sem execução neste ambiente.
+Não é necessário instalar Java 21 nem instalar Spring Boot manualmente no PC.

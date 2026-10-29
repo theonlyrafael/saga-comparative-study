@@ -16,7 +16,7 @@ e os estados e tipos de mensagens do PDF; inglês interno não altera o contrato
 
 ## Construção e execução
 
-Execute `./mvnw clean verify` neste diretório com JDK 21. O parent gerencia as
+Execute `./mvnw clean verify` neste diretório com JDK 17. O parent gerencia as
 versões; cada módulo gera um JAR executável em `target/`. Consulte o
 [README principal](../README.md) para infraestrutura e execução das cinco JVMs.
 

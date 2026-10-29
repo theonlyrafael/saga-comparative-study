@@ -29,7 +29,7 @@ Estado e validações: [docs/progress.md](docs/progress.md).
 
 ## Executar o bootstrap
 
-Pré-requisitos: JDK 21 completo (Temurin recomendado), Docker Engine/Desktop com
+Pré-requisitos: JDK 17 completo (Temurin recomendado), Docker Engine/Desktop com
 Compose v2 e Bash/curl. No Windows, use Git Bash com Docker Desktop em modo Linux.
 Maven global é dispensável: o Wrapper baixa e verifica a distribuição 3.10.0.
 Confira `java -version`, `javac -version`, `docker version` e `docker compose version`.
@@ -49,7 +49,7 @@ cd orquestrada
 cd ..
 ```
 
-Abra cinco terminais na raiz, configurando o JDK 21 em cada um, e execute **um
+Abra cinco terminais na raiz, configurando o JDK 17 em cada um, e execute **um
 comando por terminal**:
 
 ```bash
