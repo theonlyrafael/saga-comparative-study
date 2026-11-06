@@ -4,6 +4,10 @@ Estudo comparativo de Sagas para compra simulada de um ativo. A modalidade
 orquestrada começa com quatro serviços de domínio e um coordenador técnico.
 A coreografia será implementada posteriormente, preservando as regras de domínio.
 
+Etapa concluída: reservas locais de saldo do `account-service`, com reserva,
+confirmação e liberação idempotentes, controle de concorrência e 45 testes
+aprovados.
+
 ## Organização
 
 | Diretório | Finalidade |
