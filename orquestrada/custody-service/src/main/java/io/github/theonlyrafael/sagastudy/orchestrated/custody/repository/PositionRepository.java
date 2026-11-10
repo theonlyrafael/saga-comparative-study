@@ -23,6 +23,10 @@ import java.util.UUID;
 public interface PositionRepository extends Repository<Position, UUID> {
 
     @Lock(LockModeType.PESSIMISTIC_WRITE)
+    @Query("select position from Position position where position.id = :positionId")
+    Optional<Position> findByIdForUpdate(@Param("positionId") UUID positionId);
+
+    @Lock(LockModeType.PESSIMISTIC_WRITE)
     @Query("select position from Position position where position.ownerId = :ownerId and position.assetId = :assetId")
     Optional<Position> findForUpdate(
             @Param("ownerId") String ownerId,
