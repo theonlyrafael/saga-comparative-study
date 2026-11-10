@@ -4,9 +4,9 @@ Estudo comparativo de Sagas para compra simulada de um ativo. A modalidade
 orquestrada começa com quatro serviços de domínio e um coordenador técnico.
 A coreografia será implementada posteriormente, preservando as regras de domínio.
 
-Etapa concluída: reservas locais de saldo do `account-service`, com reserva,
-confirmação e liberação idempotentes, controle de concorrência e 45 testes
-aprovados.
+Etapas concluídas: reservas locais de saldo do `account-service` e de ativos do
+`custody-service`, com confirmação e liberação idempotentes, transferência de
+ativos ao comprador e controle de concorrência. São 126 testes aprovados.
 
 ## Organização
 
@@ -117,8 +117,9 @@ flowchart LR
 ```
 
 O diagrama representa conexões de infraestrutura, não um fluxo de Saga implementado.
-Próxima etapa: contratos e migrações reais de domínio, seguidos dos testes locais.
-Entidades, API de ordens, consumidores, Outbox, compensações, máquina de estados e
-coreografia permanecem fora deste bootstrap. Veja a
+As operações locais de reserva de saldo e ativos estão implementadas e testadas.
+Próxima etapa: liquidação e API de ordens/catálogo. Integração por mensagens,
+Outbox/Inbox, coordenação e recuperação distribuídas, além da coreografia,
+permanecem pendentes. Veja a
 [comparação com o protótipo](docs/prototype-comparison.md) e os
 [resultados e limitações](docs/progress.md).
