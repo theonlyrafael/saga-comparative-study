@@ -153,3 +153,40 @@ mensageria e coordenação/recuperação da Saga. Recusas sem reserva não possu
 resultado durável reapresentável; isso pertence à futura Inbox. A decisão de
 compensar somente antes da liquidação durável pertence à coordenação, ainda não
 implementada. Os testes atuais não validam uma Saga distribuída completa.
+
+## Entrega posterior — reservas locais de ativos
+
+Atualizado em 10/11/2026, na branch `feat/orchestrated-custody-reservations`.
+Concluídas as operações locais do `custody-service`: reserva, liberação e
+transferência ao comprador, com idempotência, transações e controle de concorrência.
+A [decisão 0004](decisions/0004-asset-reservations.md) detalha o contrato.
+
+A migração V2 adiciona `asset_reservations`, preservando a V1 já publicada.
+Foram adicionados AssetReservation, seu repositório e AssetReservationService,
+com testes de domínio e integração. A posição original fica registrada na reserva;
+confirmar/liberar não depende do valor atual da configuração da contraparte.
+
+Validação com Java 17.0.7 e Spring Boot 4.1.0:
+
+- Construção e empacotamento dos cinco módulos aprovados.
+- 126 testes aprovados, sem falhas, erros ou ignorados: 45 de conta e 81 de custódia.
+- Custódia: 21 testes do comando, 22 da entidade e 38 de integração com PostgreSQL
+  17.11 real, fixado por digest e executado em contêiner descartável.
+- Cobertura de reserva integral, falta de estoque, origem ausente, transferência
+  para posição nova/existente, repetição em estados terminais e conflitos.
+- Rollback após falhas no INSERT, crédito ao comprador e gravação do estado final.
+- Concorrência entre reservas, duplicatas, confirmação/liberação e colisões de
+  identificadores entre ativos diferentes, sem dupla movimentação.
+- Uso da origem persistida validado com uma instância de serviço configurada com
+  outra contraparte; esse teste não simula reinício completo dos processos.
+
+Para testar, em `orquestrada/`, executar
+`./mvnw -pl custody-service -am clean verify` com Docker disponível.
+Para configurar a contraparte ao iniciar localmente, na raiz do repositório:
+`CUSTODY_COUNTERPARTY_ID=COUNTERPARTY bash infra/scripts/run-service.sh custody`.
+A posição dessa contraparte deverá ser preparada pelos dados de cenário.
+
+A etapa de reservas locais de saldo e ativos está concluída. Ainda faltam
+liquidação, API de ordens/catálogo, mensagens, Outbox/Inbox e coordenação/recuperação.
+A autorização de efetivar após a liquidação e a reprodução durável de recusas
+não são garantias desta camada local. Ainda não existe uma Saga distribuída completa.
