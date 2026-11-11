@@ -109,3 +109,84 @@ Validação desta alteração, em Linux com Temurin **17.0.7+7**:
 Os testes de indisponibilidade descritos acima pertencem ao bootstrap original;
 não foram repetidos nesta alteração. Windows permanece sem execução neste ambiente.
 Não é necessário instalar Java 21 nem instalar Spring Boot manualmente no PC.
+
+## Entrega posterior — reservas locais de saldo
+
+Atualizado em 05/11/2026, na branch `feat/orchestrated-account-reservations`.
+O bootstrap acima já foi integrado à `main` pelo PR #1 (`dd33c0b`). A branch
+`dev` foi criada a partir desse commit, sem integração desta entrega.
+
+Implementados no `account-service`, conforme a decisão 0003:
+
+- Comando validado, estados e exceção de negócio das reservas.
+- Migração Flyway V1 de contas e reservas, com precisão monetária, constraints
+  de saldo não negativo e unicidade independente por ordem, Saga e operação.
+- Entidades encapsuladas e repositórios com operações restritas.
+- Reserva, confirmação e liberação em transações locais; bloqueio por conta e
+  atualizações condicionais, preservando saldo e reserva conjuntamente.
+- Repetição da operação retorna a reserva original; repetição de uma conclusão
+  não movimenta saldo novamente. Transições terminais incompatíveis são recusadas.
+- Falhas de persistência propagam como falhas técnicas, com rollback.
+
+Revisão: validação de entrada separada do domínio, transações no serviço de
+aplicação e acesso ao banco em interfaces pequenas. Não foram adicionadas
+interfaces de serviço sem necessidade nem compartilhadas entidades entre serviços.
+Os pacotes existentes foram preservados; esta entrega não renomeia o bootstrap.
+
+Validação em Java 17.0.7, Spring Boot 4.1.0 e PostgreSQL 17.11:
+
+- Construção Maven dos cinco serviços aprovada.
+- 45 testes aprovados, zero falhas, erros ou ignorados: 14 de validação do comando,
+  9 da entidade e 22 de integração. Imagem PostgreSQL fixada por digest, igual à
+  infraestrutura; Testcontainers usa banco descartável separado do Compose.
+- Integração exercita migração e validação JPA, idempotência, saldo insuficiente,
+  unicidade, rollback após falha de INSERT e concorrência entre reservas,
+  confirmações, liberações e confirmação contra liberação.
+- Os outros quatro serviços continuam sem testes Java nesta etapa.
+
+Com Docker disponível, na pasta `orquestrada/`, executar
+`./mvnw -pl account-service -am clean verify` para validar esta entrega.
+Relatórios: `account-service/target/surefire-reports/`.
+
+Ainda faltam reservas de ativos, liquidação, API de ordens, Outbox/Inbox,
+mensageria e coordenação/recuperação da Saga. Recusas sem reserva não possuem
+resultado durável reapresentável; isso pertence à futura Inbox. A decisão de
+compensar somente antes da liquidação durável pertence à coordenação, ainda não
+implementada. Os testes atuais não validam uma Saga distribuída completa.
+
+## Entrega posterior — reservas locais de ativos
+
+Atualizado em 10/11/2026, na branch `feat/orchestrated-custody-reservations`.
+Concluídas as operações locais do `custody-service`: reserva, liberação e
+transferência ao comprador, com idempotência, transações e controle de concorrência.
+A [decisão 0004](decisions/0004-asset-reservations.md) detalha o contrato.
+
+A migração V2 adiciona `asset_reservations`, preservando a V1 já publicada.
+Foram adicionados AssetReservation, seu repositório e AssetReservationService,
+com testes de domínio e integração. A posição original fica registrada na reserva;
+confirmar/liberar não depende do valor atual da configuração da contraparte.
+
+Validação com Java 17.0.7 e Spring Boot 4.1.0:
+
+- Construção e empacotamento dos cinco módulos aprovados.
+- 126 testes aprovados, sem falhas, erros ou ignorados: 45 de conta e 81 de custódia.
+- Custódia: 21 testes do comando, 22 da entidade e 38 de integração com PostgreSQL
+  17.11 real, fixado por digest e executado em contêiner descartável.
+- Cobertura de reserva integral, falta de estoque, origem ausente, transferência
+  para posição nova/existente, repetição em estados terminais e conflitos.
+- Rollback após falhas no INSERT, crédito ao comprador e gravação do estado final.
+- Concorrência entre reservas, duplicatas, confirmação/liberação e colisões de
+  identificadores entre ativos diferentes, sem dupla movimentação.
+- Uso da origem persistida validado com uma instância de serviço configurada com
+  outra contraparte; esse teste não simula reinício completo dos processos.
+
+Para testar, em `orquestrada/`, executar
+`./mvnw -pl custody-service -am clean verify` com Docker disponível.
+Para configurar a contraparte ao iniciar localmente, na raiz do repositório:
+`CUSTODY_COUNTERPARTY_ID=COUNTERPARTY bash infra/scripts/run-service.sh custody`.
+A posição dessa contraparte deverá ser preparada pelos dados de cenário.
+
+A etapa de reservas locais de saldo e ativos está concluída. Ainda faltam
+liquidação, API de ordens/catálogo, mensagens, Outbox/Inbox e coordenação/recuperação.
+A autorização de efetivar após a liquidação e a reprodução durável de recusas
+não são garantias desta camada local. Ainda não existe uma Saga distribuída completa.
