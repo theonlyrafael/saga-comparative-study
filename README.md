@@ -111,6 +111,9 @@ não aprovação de PR nem funcionamento completo da Saga distribuída.
 - [x] Configurar PostgreSQL com cinco bancos/usuários isolados, RabbitMQ, volumes e migrações Flyway.
 - [x] Disponibilizar saúde, liveness, readiness, métricas Prometheus e logs estruturados.
 
+- [x] Implementar [reservas locais de saldo](docs/decisions/0003-account-balance-reservations.md): reservar, confirmar e liberar com idempotência, transações e controle de concorrência.
+- [x] Implementar [reservas locais de ativos](docs/decisions/0004-asset-reservations.md): reservar, liberar e transferir ao comprador uma única vez, preservando a posição de origem.
+
 ## Infraestrutura e limites
 
 ```mermaid
