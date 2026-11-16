@@ -123,6 +123,20 @@ Os resultados acima correspondem à validação registrada em
 [docs/progress.md](docs/progress.md). Os testes concorrentes locais não comprovam
 escalabilidade sob carga nem recuperação de uma Saga distribuída.
 
+### Próximas etapas
+
+Sequência prevista a partir da especificação; manter cada item desmarcado até sua
+implementação e validação. A próxima entrega é a API de ordens com catálogo e
+idempotência HTTP.
+
+- [ ] Implementar catálogo fixo/versionado e captura do preço no registro da ordem.
+- [ ] Implementar `POST /api/ordens` e consulta por `GET /api/ordens/{orderId}`, com validação e persistência do estado da ordem.
+- [ ] Implementar idempotência HTTP por cliente e `Idempotency-Key`: reenvio igual retorna a ordem original; conteúdo divergente recebe 409.
+- [ ] Versionar seeds de catálogo, saldo inicial e estoque configuráveis por cenário.
+- [ ] Definir contratos de mensagens v1, roteamento RabbitMQ, validação dos envelopes e correlação por `orderId`, `sagaId` e `operationId` estável.
+- [ ] Implementar Outbox transacional, publicação persistente com publisher confirms e reenvio de publicações pendentes.
+- [ ] Implementar consumidores idempotentes/Inbox, resultados duráveis das operações, ACK após commit, retries e DLQ para erros de contrato.
+
 ## Infraestrutura e limites
 
 ```mermaid
