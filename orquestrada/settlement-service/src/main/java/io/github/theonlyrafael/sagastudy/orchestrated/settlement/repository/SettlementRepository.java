@@ -24,6 +24,20 @@ public class SettlementRepository {
         this.jdbc = jdbc;
     }
 
+    /** Unique indexes arbitrate simultaneous commands; no exception/retry transaction is needed for duplicates. */
+    public void insertIfAbsent(ConfirmSettlementCommand command) {
+        jdbc.update("""
+                INSERT INTO settlements (settlement_id, operation_id, order_id, saga_id,
+                    balance_reservation_id, asset_reservation_id, buyer_id, asset_id,
+                    quantity, unit_price, amount, catalog_version)
+                VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+                ON CONFLICT DO NOTHING
+                """, UUID.randomUUID(), command.operationId(), command.balance().orderId(), command.balance().sagaId(),
+                command.balance().reservationId(), command.asset().reservationId(), command.balance().buyerId(),
+                command.asset().assetId(), command.asset().quantity(), command.unitPrice(),
+                command.balance().amount(), command.catalogVersion());
+    }
+
     public Optional<Settlement> findByOperationId(UUID operationId) {
         return find("operation_id", operationId);
     }
