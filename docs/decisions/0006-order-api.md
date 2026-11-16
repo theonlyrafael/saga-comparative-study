@@ -23,3 +23,7 @@ mudar ao publicar novos preços; não se alteram migrações aplicadas. Seeds de
 saldo/estoque serão feitos com os cenários de integração. Outbox/Inbox e eventos
 permanecem pendentes; antes de habilitar Saga, ordem e evento de início deverão
 ser gravados no mesmo commit.
+
+O seed demo é uma migração repetível, sem sobrescrever ativos existentes. Isso
+não bloqueia futuras migrações numeradas. Mantenha o perfil demo nos bancos
+inicializados com ele para que Flyway continue encontrando o histórico do seed.
