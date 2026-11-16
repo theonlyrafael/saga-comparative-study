@@ -1,0 +1,21 @@
+CREATE TABLE settlements (
+    settlement_id UUID PRIMARY KEY,
+    operation_id UUID NOT NULL,
+    order_id UUID NOT NULL,
+    saga_id UUID NOT NULL,
+    balance_reservation_id UUID NOT NULL,
+    asset_reservation_id UUID NOT NULL,
+    buyer_id VARCHAR(64) NOT NULL CHECK (length(trim(buyer_id)) > 0),
+    asset_id TEXT NOT NULL CHECK (length(trim(asset_id)) > 0),
+    quantity INTEGER NOT NULL CHECK (quantity > 0),
+    unit_price NUMERIC(19,2) NOT NULL CHECK (unit_price > 0),
+    amount NUMERIC(19,2) NOT NULL CHECK (amount > 0 AND amount = unit_price * quantity),
+    catalog_version TEXT NOT NULL CHECK (length(trim(catalog_version)) > 0),
+    status VARCHAR(16) NOT NULL DEFAULT 'CONFIRMED' CHECK (status = 'CONFIRMED'),
+    confirmed_at TIMESTAMPTZ NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    CONSTRAINT uk_settlements_operation UNIQUE (operation_id),
+    CONSTRAINT uk_settlements_order UNIQUE (order_id),
+    CONSTRAINT uk_settlements_saga UNIQUE (saga_id),
+    CONSTRAINT uk_settlements_balance UNIQUE (balance_reservation_id),
+    CONSTRAINT uk_settlements_asset UNIQUE (asset_reservation_id)
+);
