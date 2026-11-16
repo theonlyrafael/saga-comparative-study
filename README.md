@@ -100,6 +100,26 @@ mesma porta. O seed é repetível e não sobrescreve ativos existentes. Mantenha
 perfil `demo` nos reinícios desse banco para preservar a validação do histórico
 Flyway. O perfil não cria saldo nem estoque; esses seeds continuam pendentes.
 
+## Criar e consultar uma ordem
+
+Com o catálogo demo e order-service em execução:
+
+```bash
+curl -i -X POST http://127.0.0.1:8081/api/ordens \
+  -H 'Content-Type: application/json' \
+  -H 'Idempotency-Key: compra-exemplo-1' \
+  -d '{"clienteId":"CLI001","ativoId":"ATV002","quantidade":3}'
+# Use o orderId retornado, ou o caminho informado no cabeçalho Location:
+curl http://127.0.0.1:8081/api/ordens/SEU_ORDER_ID
+```
+
+A criação retorna `202`, `Location`, orderId, sagaId, estado `RECEBIDA`, preço,
+valor total e versão do catálogo. Reenvio com mesmo cliente/chave/conteúdo retorna
+a ordem original; conteúdo divergente recebe `409`. Chave ausente ou entrada
+inválida recebe `400`; ativo desconhecido, `422`; consulta de ordem inexistente,
+`404`. A chave deve ter até 128 caracteres, sem espaços nas extremidades.
+A ordem permanece `RECEBIDA` enquanto a coordenação distribuída não existir.
+
 ## Encerrar e retomar
 
 Use `Ctrl+C` em cada terminal de aplicação. Em seguida:
