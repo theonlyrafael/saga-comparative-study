@@ -38,6 +38,30 @@ class ConfirmSettlementCommandTest {
         }
     }
 
+    @Test
+    void rejectsReservationsFromDifferentOrdersSagasOrBuyers() {
+        for (ReservedAsset other : new ReservedAsset[]{
+                new ReservedAsset(asset.reservationId(), UUID.randomUUID(), saga, "buyer", "asset", 3),
+                new ReservedAsset(asset.reservationId(), order, UUID.randomUUID(), "buyer", "asset", 3),
+                new ReservedAsset(asset.reservationId(), order, saga, "other", "asset", 3)}) {
+            assertThatIllegalArgumentException().isThrownBy(() -> command(balance, other, "10"));
+        }
+    }
+
+    @Test
+    void rejectsUnderReservationOverReservationAndProductOverflow() {
+        assertThatIllegalArgumentException().isThrownBy(() -> command(balance, asset, "9.99"));
+        assertThatIllegalArgumentException().isThrownBy(() -> command(balance, asset, "10.01"));
+        assertThatIllegalArgumentException().isThrownBy(() -> command(balance, asset, "99999999999999999.99"));
+    }
+
+    @Test
+    void acceptsEquivalentDecimalRepresentations() {
+        var first = command(balance, asset, "10");
+        var replay = new ConfirmSettlementCommand(first.operationId(), balance, asset, new BigDecimal("10.000"), "catalog-v1");
+        assertThat(replay).isEqualTo(first);
+    }
+
     private ConfirmSettlementCommand command(ReservedBalance money, ReservedAsset stock, String price) {
         return new ConfirmSettlementCommand(UUID.randomUUID(), money, stock, new BigDecimal(price), "catalog-v1");
     }
