@@ -1,6 +1,6 @@
 # Modalidade orquestrada
 
-| Módulo | Responsabilidade futura | Porta |
+| Módulo | Responsabilidade | Porta |
 | --- | --- | --- |
 | order-service | Entrada HTTP, catálogo, preço capturado e estado da ordem | 8081 |
 | account-service | Reserva, liberação e consumo de saldo | 8082 |
@@ -8,8 +8,9 @@
 | settlement-service | Decisão durável de liquidação | 8084 |
 | orchestrator-service | Coordenação técnica, recuperação e compensações | 8085 |
 
-Esta etapa prepara apenas as aplicações e a infraestrutura. Não há API de ordens,
-entidades, consumidores, Outbox, compensações ou máquina de estados implementados.
+Estão implementadas as reservas locais de saldo e ativos e a decisão durável de
+liquidação. Não há API de ordens, consumidores, Outbox/Inbox ou máquina de estados
+distribuída. As liberações locais existem; a coordenação das compensações ainda não.
 Pacotes: `io.github.theonlyrafael.sagastudy.orchestrated.<order|account|custody|settlement|orchestrator>`.
 O futuro contrato HTTP mantém `/api/ordens`, `clienteId`, `ativoId`, `quantidade`
 e os estados e tipos de mensagens do PDF; inglês interno não altera o contrato.
@@ -20,9 +21,23 @@ Execute `./mvnw clean verify` neste diretório com JDK 17. O parent gerencia as
 versões; cada módulo gera um JAR executável em `target/`. Consulte o
 [README principal](../README.md) para infraestrutura e execução das cinco JVMs.
 
-Flyway usa `src/main/resources/db/migration/` de cada serviço. Os `.gitkeep`
-apenas preservam os diretórios. A primeira migração será uma alteração real de
-esquema quando o domínio for implementado. O aviso de zero migrações é esperado
-nesta etapa; Flyway pode criar sua própria tabela técnica de histórico.
+Flyway usa `src/main/resources/db/migration/` de cada serviço. Conta, custódia e
+liquidação possuem migrações de negócio e testes com PostgreSQL via Testcontainers.
+Ordens e orquestrador ainda têm diretórios marcados por `.gitkeep` e nenhuma
+migração de negócio; o aviso de zero migrações é esperado somente nesses módulos.
 Não usar migrações vazias, `ddl-auto=create/update`, H2 ou `baseline-on-migrate`
 para mascarar diferenças de esquema.
+
+## Validar as capacidades locais
+
+Com JDK 17 e Docker disponíveis, `./mvnw clean verify` executa 180 testes
+(53 conta, 81 custódia e 46 liquidação) e constrói os cinco JARs.
+Para focar na liquidação: `./mvnw -pl settlement-service -am test`.
+Pare as JVMs antes de reempacotar os JARs utilizados por elas.
+
+`SettlementService.confirm` recebe snapshots das duas reservas bem-sucedidas,
+operationId estável, preço capturado e versão do catálogo. Repetições iguais
+retornam a decisão original; dados divergentes geram conflito. Consultas por
+operação, ordem e Saga permitem recuperar a decisão sem efeitos adicionais.
+O [contrato detalhado](../docs/decisions/0005-local-settlement.md) explica a
+fronteira de confiança e por que ausência/timeout isolado não autoriza compensação.

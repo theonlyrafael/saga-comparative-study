@@ -6,7 +6,8 @@ A coreografia será implementada posteriormente, preservando as regras de domín
 
 Etapas concluídas: reservas locais de saldo do `account-service` e de ativos do
 `custody-service`, com confirmação e liberação idempotentes, transferência de
-ativos ao comprador e controle de concorrência. São 126 testes aprovados.
+ativos ao comprador e controle de concorrência; decisão local durável e idempotente de liquidação.
+São 180 testes aprovados.
 
 ## Organização
 
@@ -26,8 +27,8 @@ para permitir projetos executáveis e infraestrutura, sem implementar regras da 
 
 Código, pacotes e artefatos usam inglês. Documentação e mensagens de commit usam
 português, com prefixos Conventional Commits (`chore`, `build`, `docs`, `feat`, `test`).
-Branches curtas por tarefa são integradas por pull request para `main`; excluir a
-branch somente após o merge. As duas modalidades coexistem no mesmo histórico.
+Branches curtas por tarefa partem de `dev` e entram por pull request em `dev`;
+o conjunto aceito segue de `dev` para `main`. Excluir a feature somente após seu merge. As duas modalidades coexistem no mesmo histórico.
 
 Estado e validações: [docs/progress.md](docs/progress.md).
 
@@ -118,7 +119,10 @@ flowchart LR
 
 O diagrama representa conexões de infraestrutura, não um fluxo de Saga implementado.
 As operações locais de reserva de saldo e ativos estão implementadas e testadas.
-Próxima etapa: liquidação e API de ordens/catálogo. Integração por mensagens,
+A liquidação local registra a decisão durável, valida reservas compatíveis e permite
+recuperar o resultado por operação, ordem ou Saga. Consulte o
+[contrato local](docs/decisions/0005-local-settlement.md).
+Próxima etapa: API de ordens/catálogo e idempotência HTTP. Integração por mensagens,
 Outbox/Inbox, coordenação e recuperação distribuídas, além da coreografia,
 permanecem pendentes. Veja a
 [comparação com o protótipo](docs/prototype-comparison.md) e os
