@@ -9,8 +9,8 @@
 | orchestrator-service | Coordenação técnica, recuperação e compensações | 8085 |
 
 Estão implementadas as reservas locais de saldo e ativos e a decisão durável de
-liquidação. Não há API de ordens, consumidores, Outbox/Inbox ou máquina de estados
-distribuída. As liberações locais existem; a coordenação das compensações ainda não.
+liquidação. Há API local de ordens com catálogo e idempotência HTTP. Ainda não há
+consumidores, Outbox/Inbox ou máquina de estados distribuída. As liberações locais existem; a coordenação das compensações ainda não.
 Pacotes: `io.github.theonlyrafael.sagastudy.orchestrated.<order|account|custody|settlement|orchestrator>`.
 O futuro contrato HTTP mantém `/api/ordens`, `clienteId`, `ativoId`, `quantidade`
 e os estados e tipos de mensagens do PDF; inglês interno não altera o contrato.
@@ -23,15 +23,15 @@ versões; cada módulo gera um JAR executável em `target/`. Consulte o
 
 Flyway usa `src/main/resources/db/migration/` de cada serviço. Conta, custódia e
 liquidação possuem migrações de negócio e testes com PostgreSQL via Testcontainers.
-Ordens e orquestrador ainda têm diretórios marcados por `.gitkeep` e nenhuma
-migração de negócio; o aviso de zero migrações é esperado somente nesses módulos.
+Ordens tem migrações de catálogo, ordens e idempotência. Apenas o orquestrador
+ainda não tem migrações de negócio.
 Não usar migrações vazias, `ddl-auto=create/update`, H2 ou `baseline-on-migrate`
 para mascarar diferenças de esquema.
 
 ## Validar as capacidades locais
 
-Com JDK 17 e Docker disponíveis, `./mvnw clean verify` executa 180 testes
-(53 conta, 81 custódia e 46 liquidação) e constrói os cinco JARs.
+Com JDK 17 e Docker disponíveis, `./mvnw clean verify` executa 210 testes
+(30 ordens, 53 conta, 81 custódia e 46 liquidação) e constrói os cinco JARs.
 Para focar na liquidação: `./mvnw -pl settlement-service -am test`.
 Pare as JVMs antes de reempacotar os JARs utilizados por elas.
 
@@ -41,3 +41,6 @@ retornam a decisão original; dados divergentes geram conflito. Consultas por
 operação, ordem e Saga permitem recuperar a decisão sem efeitos adicionais.
 O [contrato detalhado](../docs/decisions/0005-local-settlement.md) explica a
 fronteira de confiança e por que ausência/timeout isolado não autoriza compensação.
+
+Para testar apenas ordens: `./mvnw -pl order-service -am test`. A API e o perfil
+opcional demo estão descritos no README principal e na decisão 0006.
