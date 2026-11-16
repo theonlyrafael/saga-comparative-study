@@ -20,8 +20,8 @@ Os resultados detalhados e as limitações estão em [docs/progress.md](docs/pro
 
 A [especificação original](docs/specifications/orchestrated-saga-specification.pdf)
 é a referência de domínio. O [guia de preparação](docs/preparation-guide.md) foi
-preservado como referência; a autorização desta tarefa amplia seu limite sem código
-para permitir projetos executáveis e infraestrutura, sem implementar regras da Saga.
+preservado como referência histórica da preparação. O estado atual inclui
+infraestrutura executável, reservas e liquidação locais, conforme a checklist abaixo.
 
 Código, pacotes e artefatos usam inglês. Documentação e mensagens de commit usam
 português, com prefixos Conventional Commits (`chore`, `build`, `docs`, `feat`, `test`).
@@ -110,10 +110,8 @@ não aprovação de PR nem funcionamento completo da Saga distribuída.
 - [x] Configurar Java 17, Maven Wrapper e as cinco aplicações Spring Boot independentes.
 - [x] Configurar PostgreSQL com cinco bancos/usuários isolados, RabbitMQ, volumes e migrações Flyway.
 - [x] Disponibilizar saúde, liveness, readiness, métricas Prometheus e logs estruturados.
-
 - [x] Implementar [reservas locais de saldo](docs/decisions/0003-account-balance-reservations.md): reservar, confirmar e liberar com idempotência, transações e controle de concorrência.
 - [x] Implementar [reservas locais de ativos](docs/decisions/0004-asset-reservations.md): reservar, liberar e transferir ao comprador uma única vez, preservando a posição de origem.
-
 - [x] Implementar [liquidação local durável](docs/decisions/0005-local-settlement.md): validar reservas compatíveis, registrar uma decisão única e permitir replay e consultas por operação, ordem e Saga.
 - [x] Corrigir o conflito de replay com conta inexistente e proteger as operações SQL de saldo contra valores não positivos e ausência de transação.
 - [x] Validar as três capacidades locais com **180 testes aprovados**, sem falhas, erros ou ignorados: 53 de saldo, 81 de custódia e 46 de liquidação.
@@ -136,6 +134,17 @@ idempotência HTTP.
 - [ ] Definir contratos de mensagens v1, roteamento RabbitMQ, validação dos envelopes e correlação por `orderId`, `sagaId` e `operationId` estável.
 - [ ] Implementar Outbox transacional, publicação persistente com publisher confirms e reenvio de publicações pendentes.
 - [ ] Implementar consumidores idempotentes/Inbox, resultados duráveis das operações, ACK após commit, retries e DLQ para erros de contrato.
+- [ ] Implementar o motor persistente da Saga, com estados técnicos, etapas, prazos e consulta restrita de diagnóstico.
+- [ ] Integrar o caminho feliz: reservar saldo → reservar ativo → registrar liquidação → efetivar saldo/ativo → finalizar a ordem como LIQUIDADA.
+- [ ] Implementar compensações em ordem inversa antes da liquidação, rejeitando a ordem somente após confirmar a liberação dos recursos.
+- [ ] Implementar reconciliação após falhas/reinício e consulta de resultados desconhecidos; após liquidação confirmada, concluir efetivações sem compensação automática.
+- [ ] Completar observabilidade do fluxo com tracing OpenTelemetry, identificadores nos logs e métricas de convergência, compensação e latência.
+- [ ] Executar testes integrados de falhas C1–C6, duplicação, concorrência, crash entre commit/publicação e recuperação após liquidação, conforme o protocolo-base.
+- [ ] Validar os invariantes fim a fim: ausência de reservas após rejeição, efetivações únicas antes de LIQUIDADA e identificação das Sagas não terminais.
+- [ ] Preparar o piloto com cenários, seeds, versões e configurações reprodutíveis; medir carga e capacidade antes de fixar parâmetros experimentais.
+
+A modalidade coreografada permanece uma etapa posterior, após a validação da
+orquestrada, preservando as mesmas regras de negócio e critérios de comparação.
 
 ## Infraestrutura e limites
 
@@ -154,12 +163,6 @@ flowchart LR
 ```
 
 O diagrama representa conexões de infraestrutura, não um fluxo de Saga implementado.
-As operações locais de reserva de saldo e ativos estão implementadas e testadas.
-A liquidação local registra a decisão durável, valida reservas compatíveis e permite
-recuperar o resultado por operação, ordem ou Saga. Consulte o
-[contrato local](docs/decisions/0005-local-settlement.md).
-Próxima etapa: API de ordens/catálogo e idempotência HTTP. Integração por mensagens,
-Outbox/Inbox, coordenação e recuperação distribuídas, além da coreografia,
-permanecem pendentes. Veja a
-[comparação com o protótipo](docs/prototype-comparison.md) e os
-[resultados e limitações](docs/progress.md).
+A checklist distingue as capacidades locais já verificadas das etapas distribuídas
+pendentes. Veja também a [comparação com o protótipo](docs/prototype-comparison.md)
+e os [resultados e limitações](docs/progress.md).
