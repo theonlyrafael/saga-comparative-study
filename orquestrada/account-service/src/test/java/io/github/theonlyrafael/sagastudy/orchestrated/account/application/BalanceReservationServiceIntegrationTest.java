@@ -334,6 +334,18 @@ class BalanceReservationServiceIntegrationTest {
     }
 
     @Test
+    void nonexistentAccountCannotHideAnOperationConflict() {
+        var original = command("30.00");
+        service.reserve(original);
+        var conflicting = new ReserveBalanceCommand(original.orderId(), original.sagaId(),
+                original.operationId(), "MISSING", original.amount());
+        assertEquals(OPERATION_CONFLICT, assertThrows(BalanceReservationException.class,
+                () -> service.reserve(conflicting)).getReason());
+        assertBalances("70.00", "30.00", "0.00");
+        assertEquals(1L, reservationCount());
+    }
+
+    @Test
     void conflictingAccountCannotReuseOperation() {
         jdbc.update("INSERT INTO accounts (account_id, available_balance) VALUES ('CLI002', 100)");
         var original = command("30.00");
