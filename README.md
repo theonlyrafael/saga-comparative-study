@@ -148,12 +148,20 @@ não aprovação de PR nem funcionamento completo da Saga distribuída.
 - [x] Implementar [reservas locais de ativos](docs/decisions/0004-asset-reservations.md): reservar, liberar e transferir ao comprador uma única vez, preservando a posição de origem.
 - [x] Implementar [liquidação local durável](docs/decisions/0005-local-settlement.md): validar reservas compatíveis, registrar uma decisão única e permitir replay e consultas por operação, ordem e Saga.
 - [x] Corrigir o conflito de replay com conta inexistente e proteger as operações SQL de saldo contra valores não positivos e ausência de transação.
-- [x] Validar as três capacidades locais com **180 testes aprovados**, sem falhas, erros ou ignorados: 53 de saldo, 81 de custódia e 46 de liquidação.
+- [x] Validar a API e as três capacidades locais com **210 testes aprovados**, sem falhas, erros ou ignorados: 30 de ordens, 53 de saldo, 81 de custódia e 46 de liquidação.
 - [x] Verificar a inicialização das cinco aplicações, saúde/readiness UP e isolamento dos bancos (cinco acessos próprios e vinte recusas cruzadas).
 
+- [x] Implementar catálogo fixo/versionado e captura do preço no registro da ordem.
+- [x] Implementar `POST /api/ordens` e consulta por `GET /api/ordens/{orderId}`, com validação e persistência do estado da ordem.
+- [x] Implementar idempotência HTTP por cliente e `Idempotency-Key`: reenvio igual retorna a ordem original; conteúdo divergente recebe 409.
+
 Os resultados acima correspondem à validação registrada em
-[docs/progress.md](docs/progress.md). Os testes concorrentes locais não comprovam
-escalabilidade sob carga nem recuperação de uma Saga distribuída.
+[docs/progress.md](docs/progress.md). Os testes incluem HTTP real com PostgreSQL, replay, concorrência e rollback.
+Eles não comprovam escalabilidade sob carga nem recuperação de uma Saga distribuída.
+A API é local de desenvolvimento e ainda não possui autenticação/autorização;
+clienteId não representa identidade autenticada. Não a exponha externamente antes
+de implementar esses controles. O [contrato de ordens](docs/decisions/0006-order-api.md)
+detalha idempotência, erros e limites desta entrega.
 
 ### Próximas etapas
 
@@ -161,9 +169,6 @@ Sequência prevista a partir da especificação; manter cada item desmarcado at�
 implementação e validação. API de ordens, catálogo e idempotência HTTP estão implementados. A próxima
 entrega é a integração confiável por mensagens, com Outbox/Inbox.
 
-- [x] Implementar catálogo fixo/versionado e captura do preço no registro da ordem.
-- [x] Implementar `POST /api/ordens` e consulta por `GET /api/ordens/{orderId}`, com validação e persistência do estado da ordem.
-- [x] Implementar idempotência HTTP por cliente e `Idempotency-Key`: reenvio igual retorna a ordem original; conteúdo divergente recebe 409.
 - [ ] Versionar seeds de catálogo, saldo inicial e estoque configuráveis por cenário.
 - [ ] Definir contratos de mensagens v1, roteamento RabbitMQ, validação dos envelopes e correlação por `orderId`, `sagaId` e `operationId` estável.
 - [ ] Implementar Outbox transacional, publicação persistente com publisher confirms e reenvio de publicações pendentes.
