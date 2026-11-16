@@ -28,5 +28,14 @@ public record ConfirmSettlementCommand(
         if (unitPrice.signum() <= 0 || unitPrice.precision() > 19) {
             throw new IllegalArgumentException("unitPrice must be positive and fit NUMERIC(19,2)");
         }
+        if (!balance.orderId().equals(asset.orderId())
+                || !balance.sagaId().equals(asset.sagaId())
+                || !balance.buyerId().equals(asset.buyerId())) {
+            throw new IllegalArgumentException("Reservations must belong to the same order, saga and buyer");
+        }
+        BigDecimal total = unitPrice.multiply(BigDecimal.valueOf(asset.quantity()));
+        if (total.precision() > 19 || total.compareTo(balance.amount()) != 0) {
+            throw new IllegalArgumentException("Reserved balance must equal captured price times quantity and fit NUMERIC(19,2)");
+        }
     }
 }
