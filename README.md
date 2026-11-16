@@ -114,6 +114,15 @@ não aprovação de PR nem funcionamento completo da Saga distribuída.
 - [x] Implementar [reservas locais de saldo](docs/decisions/0003-account-balance-reservations.md): reservar, confirmar e liberar com idempotência, transações e controle de concorrência.
 - [x] Implementar [reservas locais de ativos](docs/decisions/0004-asset-reservations.md): reservar, liberar e transferir ao comprador uma única vez, preservando a posição de origem.
 
+- [x] Implementar [liquidação local durável](docs/decisions/0005-local-settlement.md): validar reservas compatíveis, registrar uma decisão única e permitir replay e consultas por operação, ordem e Saga.
+- [x] Corrigir o conflito de replay com conta inexistente e proteger as operações SQL de saldo contra valores não positivos e ausência de transação.
+- [x] Validar as três capacidades locais com **180 testes aprovados**, sem falhas, erros ou ignorados: 53 de saldo, 81 de custódia e 46 de liquidação.
+- [x] Verificar a inicialização das cinco aplicações, saúde/readiness UP e isolamento dos bancos (cinco acessos próprios e vinte recusas cruzadas).
+
+Os resultados acima correspondem à validação registrada em
+[docs/progress.md](docs/progress.md). Os testes concorrentes locais não comprovam
+escalabilidade sob carga nem recuperação de uma Saga distribuída.
+
 ## Infraestrutura e limites
 
 ```mermaid
