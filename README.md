@@ -86,6 +86,20 @@ Endpoints disponíveis em **cada** porta 8081–8085:
 A API `/api/ordens` registra e consulta ordens. Sua existência e a confirmação de
 saúde não comprovam publicação/consumo de mensagens nem execução da Saga.
 
+## Catálogo demonstrativo
+
+O catálogo padrão começa vazio. Para carregar os ativos `ATV001` (10,00) e
+`ATV002` (25,50), versão `demo-v1`, inicie **somente order-service** com:
+
+```bash
+SPRING_PROFILES_ACTIVE=demo bash infra/scripts/run-service.sh order
+```
+
+Use esse comando no lugar do comando normal de ordens, sem iniciar duas JVMs na
+mesma porta. O seed é repetível e não sobrescreve ativos existentes. Mantenha o
+perfil `demo` nos reinícios desse banco para preservar a validação do histórico
+Flyway. O perfil não cria saldo nem estoque; esses seeds continuam pendentes.
+
 ## Encerrar e retomar
 
 Use `Ctrl+C` em cada terminal de aplicação. Em seguida:
