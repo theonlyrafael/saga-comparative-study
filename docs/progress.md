@@ -1,5 +1,39 @@
 # Progresso — Saga orquestrada
 
+## Estado atual — API local de ordens (16/11/2026)
+
+Branch `feat/orchestrated-order-api`, baseada na dev `368f20c` após o merge da
+liquidação. Implementa POST/GET, catálogo local versionado, captura de preço e
+idempotência por cliente/chave. Contrato: [decisão 0006](decisions/0006-order-api.md).
+
+Validação final do código `11d6007`: `clean verify` com Java 17, Maven Wrapper e
+PostgreSQL real via Testcontainers. **210 testes aprovados**, zero falhas, erros
+ou ignorados: 30 ordens, 53 saldo, 81 custódia, 46 liquidação. Cinco JARs construídos.
+O teste HTTP inicia Spring Boot numa porta aleatória, ativa demo e exercita as
+migrações, criação/consulta, erros, preço capturado, replay, isolamento por cliente,
+concorrência e rollback de falhas de banco. Nenhum serviço remoto é simulado para
+substituir PostgreSQL. Não houve benchmark nem reinício completo de processo.
+
+A composição tem número constante de instruções por criação; chaves primárias e
+índices únicos atendem às buscas. O índice composto cliente/chave serializa apenas
+comandos conflitantes, sem lock global. Busca indexada é tipicamente O(log n),
+mas espera por transações, I/O e tamanho do pool precisam de medição em piloto.
+Validação, HTTP, transação e SQL têm responsabilidades separadas e injeção por
+construtor; ainda há dependência de repositórios concretos, sem pretender adesão
+absoluta a todas as interpretações de SOLID. Não foram criadas abstrações sem uso.
+
+Limites: não há autenticação/autorização HTTP; a API é de desenvolvimento em
+loopback. clienteId não é identidade autenticada. Antes de exposição externa,
+será necessário vincular o cliente à identidade e restringir a consulta de ordens.
+Ordens ficam RECEBIDA; não há Outbox, publicação de início nem execução da Saga.
+Chaves bem-sucedidas não expiram; falhas que revertem a transação não reservam a
+chave. Limpeza/retenção exigirá política que preserve idempotência. Dados de demo
+são opcionais; seeds de saldo/estoque permanecem para os cenários integrados.
+
+Próximo passo: contratos assíncronos, Outbox/Inbox e mensageria. Esta branch pode
+seguir em PR para dev; excluir somente após o merge. Não foi realizado merge.
+As seções seguintes preservam o histórico das entregas anteriores.
+
 ## Estado atual — liquidação local (16/11/2026)
 
 Branch: `feat/orchestrated-settlement`, criada a partir de `origin/dev`
