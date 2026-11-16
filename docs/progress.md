@@ -1,4 +1,85 @@
-# Progresso — bootstrap orquestrado
+# Progresso — Saga orquestrada
+
+## Estado atual — liquidação local (16/11/2026)
+
+Branch: `feat/orchestrated-settlement`, criada a partir de `origin/dev`
+`888037060287110019ff40824238d08c5fd174b5`. O checkout estava limpo.
+O histórico confirma saldo e custódia na dev (PRs #2/#3), e a consolidação na
+main pelo PR #4 (`22c200d`). O PDF anexado foi comparado byte a byte por SHA-256
+com o versionado: ambos `4c26d88863399196aa33355798e8fcb2af1beb82130103b01054aadbc36c0d6b`.
+O guia de preparação permanece histórico; a autorização atual permite implementação,
+Java 17/Boot 4.1.0 e o fluxo feature → dev → main são as decisões posteriores.
+
+### Entregue
+
+- Snapshots das reservas, comando com correlação e valores compatíveis.
+- Migração de settlements, unicidade e decisão CONFIRMED sem reversão na interface.
+- Inserção atômica, replay que preserva identificador/timestamp e consultas por
+  operação, ordem e Saga. JDBC explícito e resultado imutável, sem banco compartilhado.
+- Testes de conflitos em cada campo e chave única, concorrência, rollback,
+  falha técnica e recuperação de resultado por outra instância do serviço.
+- Revisão das capacidades anteriores: dois defeitos reais de saldo foram
+  reproduzidos antes da correção. Replay divergente com conta inexistente retornava
+  ACCOUNT_NOT_FOUND; agora retorna OPERATION_CONFLICT. As primitivas SQL aceitavam
+  zero/negativos; agora exigem valor positivo e transação do chamador.
+- Commits incrementais de implementação e testes, incluindo duas etapas do comando
+  e do serviço. Nenhum defeito foi introduzido deliberadamente para gerar commits fix.
+
+Contrato e avaliação de responsabilidades, consultas e contenção:
+[decisão 0005](decisions/0005-local-settlement.md).
+
+### Evidências executadas
+
+A baseline anterior à implementação passou com 126 testes. A validação final
+`clean verify` passou no código de `09b391b` (commits seguintes são documentação),
+com JDK 17.0.7, Maven Wrapper 3.10.0 e PostgreSQL 17.11 via Testcontainers:
+
+| Componente | Testes | Falhas / erros / ignorados |
+| --- | ---: | --- |
+| Conta | 53 | 0 / 0 / 0 |
+| Custódia | 81 | 0 / 0 / 0 |
+| Liquidação | 46 | 0 / 0 / 0 |
+| Total | **180** | **0 / 0 / 0** |
+
+Ordens e orquestrador não têm testes de domínio; seus JARs foram construídos.
+No ambiente de nuvem, dentro de `orquestrada/`, foi usado:
+
+```bash
+JAVA_HOME=/workspace/tools/jdk-17.0.7+7 \
+MAVEN_USER_HOME=/workspace/cache/maven-wrapper \
+MAVEN_OPTS=-Djavax.net.ssl.trustStore=/etc/ssl/certs/java/cacerts \
+./mvnw -o -B -ntp -s /workspace/tools/maven-settings.xml clean verify
+```
+
+Modo offline depende do cache previamente instalado. Fora desta nuvem, usar o
+Wrapper com JDK 17 e Docker e omitir os caminhos locais. Relatórios Surefire ficam
+nos `target/surefire-reports` dos três módulos. Não foram adicionados segredos ao Git.
+
+Após o build, os cinco serviços foram iniciados: saúde/readiness UP, liveness e
+Prometheus responderam nas portas 8081–8085. O isolamento confirmou cinco acessos
+próprios e vinte recusas cruzadas, preservando volumes. A aplicação de liquidação
+iniciou com sua migração V1. Essas verificações não demonstram Saga fim a fim.
+
+### Limites e continuação
+
+Liquidação local está completa para este escopo. Não confirma estado remoto das
+reservas nem entrega mensagens. A recuperação testada é outra instância na mesma
+JVM, não crash/reinício completo. Ausência de decisão em consulta isolada não
+exclui confirmação futura de um comando em trânsito e não autoriza compensar.
+Continuam pendentes API/catálogo/seeds, Outbox/Inbox, mensageria, motor da Saga,
+recuperação distribuída, tracing e testes C1–C6. Escalabilidade exige piloto;
+concorrência funcional não equivale a medição de capacidade.
+
+Próximo PR: feature atual → `dev`, com título sugerido
+**Implementa decisão local durável de liquidação na Saga orquestrada**.
+O usuário revisa e faz o merge; depois pode excluir esta feature. Manter `dev` e
+`main`. Para a próxima etapa, criar `feat/orchestrated-order-api` a partir da dev
+atualizada, preservando preço/versão do catálogo e idempotência HTTP. Usar a branch
+atual somente para ajustes desta revisão, sem acumular outra capacidade nela.
+
+---
+
+## Histórico do bootstrap
 
 Atualizado em 29/10/2026. Branch de trabalho: `chore/orchestrated-bootstrap`.
 Base: `origin/main` atualizada no início, commit

@@ -35,27 +35,16 @@ public class BalanceReservationService {
     public UUID reserve(ReserveBalanceCommand command) {
         Objects.requireNonNull(command, "command is required");
 
-        lockAccount(command.accountId());
-
         var existing = reservations.findByOperationId(command.operationId());
-
         if (existing.isPresent()) {
-            BalanceReservation reservation = existing.get();
+            return replay(existing.get(), command);
+        }
 
-            if (!reservation.matches(
-                    command.orderId(),
-                    command.sagaId(),
-                    command.accountId(),
-                    command.amount()
-            )) {
-                throw new BalanceReservationException(
-                        OPERATION_CONFLICT,
-                        "operationId was already used with different reservation data"
-                );
-            }
-
-            // Replays return the original identifier, including after completion.
-            return reservation.getId();
+        lockAccount(command.accountId());
+        // Recheck after the lock: a concurrent operation on this account may have committed.
+        existing = reservations.findByOperationId(command.operationId());
+        if (existing.isPresent()) {
+            return replay(existing.get(), command);
         }
 
         if (reservations.existsByOrderIdOrSagaId(
@@ -151,6 +140,14 @@ public class BalanceReservationService {
                         RESERVATION_NOT_FOUND,
                         "Balance reservation was not found"
                 ));
+    }
+
+    private UUID replay(BalanceReservation reservation, ReserveBalanceCommand command) {
+        if (!reservation.matches(command.orderId(), command.sagaId(), command.accountId(), command.amount())) {
+            throw new BalanceReservationException(OPERATION_CONFLICT,
+                    "operationId was already used with different reservation data");
+        }
+        return reservation.getId();
     }
 
     private void lockAccount(String accountId) {
