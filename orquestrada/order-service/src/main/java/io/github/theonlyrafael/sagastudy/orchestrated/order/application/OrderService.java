@@ -2,8 +2,10 @@ package io.github.theonlyrafael.sagastudy.orchestrated.order.application;
 
 import io.github.theonlyrafael.sagastudy.orchestrated.order.domain.*;
 import io.github.theonlyrafael.sagastudy.orchestrated.order.repository.*;
+
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.*;
+
 import java.util.*;
 
 @Service
@@ -11,11 +13,19 @@ public class OrderService {
     private final OrderRepository orders;
     private final CatalogRepository catalog;
     private final IdempotencyRepository keys;
-    public OrderService(OrderRepository orders, CatalogRepository catalog, IdempotencyRepository keys) {
-        this.orders = orders; this.catalog = catalog; this.keys = keys;
+
+    public OrderService(
+            OrderRepository orders, CatalogRepository catalog, IdempotencyRepository keys) {
+        this.orders = orders;
+        this.catalog = catalog;
+        this.keys = keys;
     }
+
     @Transactional(readOnly = true)
-    public Order find(UUID id) { return orders.find(Objects.requireNonNull(id)).orElseThrow(OrderNotFoundException::new); }
+    public Order find(UUID id) {
+        return orders.find(Objects.requireNonNull(id)).orElseThrow(OrderNotFoundException::new);
+    }
+
     @Transactional(isolation = Isolation.READ_COMMITTED)
     public Order create(CreateOrderCommand command) {
         Objects.requireNonNull(command);

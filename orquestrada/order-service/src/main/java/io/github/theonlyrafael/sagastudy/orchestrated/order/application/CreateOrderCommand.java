@@ -1,6 +1,5 @@
 package io.github.theonlyrafael.sagastudy.orchestrated.order.application;
 
-import java.util.Objects;
 
 public record CreateOrderCommand(String clienteId, String ativoId, int quantidade, String key) {
     public CreateOrderCommand {
@@ -9,8 +8,12 @@ public record CreateOrderCommand(String clienteId, String ativoId, int quantidad
         identifier(key, 128, "Idempotency-Key");
         if (quantidade <= 0) throw new IllegalArgumentException("quantidade must be positive");
     }
+
     private static void identifier(String value, int max, String field) {
-        if (value == null || value.isBlank() || value.length() > max || !value.equals(value.strip()))
+        if (value == null
+                || value.isBlank()
+                || value.length() > max
+                || !value.equals(value.strip()))
             throw new IllegalArgumentException(field + " is invalid");
     }
 }
