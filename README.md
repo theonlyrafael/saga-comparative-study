@@ -4,10 +4,8 @@ Estudo comparativo de Sagas para compra simulada de um ativo. A modalidade
 orquestrada começa com quatro serviços de domínio e um coordenador técnico.
 A coreografia será implementada posteriormente, preservando as regras de domínio.
 
-Etapas concluídas: reservas locais de saldo do `account-service` e de ativos do
-`custody-service`, com confirmação e liberação idempotentes, transferência de
-ativos ao comprador e controle de concorrência; decisão local durável e idempotente de liquidação.
-São 180 testes aprovados.
+O progresso da implementação está na [checklist da Saga orquestrada](#progresso-da-saga-orquestrada).
+Os resultados detalhados e as limitações estão em [docs/progress.md](docs/progress.md).
 
 ## Organização
 
@@ -101,7 +99,19 @@ de aplicação novamente. **Não use `down -v` para encerrar:** ele destrói os 
 Trocar senhas no `.env` não modifica usuários já persistidos nos volumes; consulte
 [infra/README.md](infra/README.md) para o ciclo de vida da configuração.
 
-## Escopo e próximos passos
+## Progresso da Saga orquestrada
+
+Os itens marcados representam capacidades implementadas e verificadas nesta branch,
+não aprovação de PR nem funcionamento completo da Saga distribuída.
+
+### Etapas concluídas
+
+- [x] Preparar o monorepositório, a especificação, as convenções e a documentação de desenvolvimento.
+- [x] Configurar Java 17, Maven Wrapper e as cinco aplicações Spring Boot independentes.
+- [x] Configurar PostgreSQL com cinco bancos/usuários isolados, RabbitMQ, volumes e migrações Flyway.
+- [x] Disponibilizar saúde, liveness, readiness, métricas Prometheus e logs estruturados.
+
+## Infraestrutura e limites
 
 ```mermaid
 flowchart LR
