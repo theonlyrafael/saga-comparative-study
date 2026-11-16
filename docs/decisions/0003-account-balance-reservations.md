@@ -69,3 +69,12 @@ Não há API HTTP, consumidor RabbitMQ, Outbox ou Inbox nesta entrega.
 A autorização de compensar antes da decisão de liquidação pertence à coordenação
 da Saga. O account-service impede transições incompatíveis com o estado local,
 mas não consulta o banco do serviço de liquidação.
+
+## Revisão durante a liquidação local
+
+O replay é verificado antes de procurar a conta informada e novamente após seu
+bloqueio. Assim, uma conta inexistente não oculta o conflito de um operationId
+já usado. As primitivas de movimentação exigem transação do chamador e valor
+positivo também no SQL, alinhadas às proteções da custódia. Os testes de regressão
+reproduziram as falhas antes das correções; comandos públicos já validavam valores,
+mas chamadas diretas ao repositório precisavam da defesa adicional.
