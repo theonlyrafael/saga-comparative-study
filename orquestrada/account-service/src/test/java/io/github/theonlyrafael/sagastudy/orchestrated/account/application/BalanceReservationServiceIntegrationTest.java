@@ -5,6 +5,10 @@ import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.params.ParameterizedTest;
 import org.junit.jupiter.params.provider.ValueSource;
+import org.junit.jupiter.params.provider.CsvSource;
+import io.github.theonlyrafael.sagastudy.orchestrated.account.repository.AccountRepository;
+import org.springframework.transaction.PlatformTransactionManager;
+import org.springframework.transaction.support.TransactionTemplate;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.test.context.SpringBootTest;
 import org.springframework.jdbc.core.JdbcTemplate;
@@ -67,6 +71,12 @@ class BalanceReservationServiceIntegrationTest {
 
     @Autowired
     private JdbcTemplate jdbc;
+
+    @Autowired
+    private AccountRepository accounts;
+
+    @Autowired
+    private PlatformTransactionManager transactionManager;
 
     @BeforeEach
     void prepareAccount() {
@@ -331,6 +341,40 @@ class BalanceReservationServiceIntegrationTest {
                 assertThrows(BalanceReservationException.class,
                         () -> service.release(missing)).getReason());
         assertBalances("100.00", "0.00", "0.00");
+    }
+
+    @ParameterizedTest
+    @CsvSource({"reserve,0", "reserve,-1", "consume,0", "consume,-1", "release,0", "release,-1"})
+    void repositoryRejectsNonPositiveMovements(String operation, BigDecimal amount) {
+        jdbc.update("UPDATE accounts SET available_balance = 60, reserved_balance = 30, total_consumed = 10");
+        var transaction = new TransactionTemplate(transactionManager);
+        Integer changed = transaction.execute(status -> switch (operation) {
+            case "reserve" -> accounts.reserve("CLI001", amount);
+            case "consume" -> accounts.consume("CLI001", amount);
+            case "release" -> accounts.release("CLI001", amount);
+            default -> throw new IllegalArgumentException(operation);
+        });
+        assertEquals(0, changed);
+        assertBalances("60.00", "30.00", "10.00");
+    }
+
+    @Test
+    void monetaryPrimitivesRequireACallerTransaction() {
+        assertThrows(org.springframework.transaction.IllegalTransactionStateException.class,
+                () -> accounts.reserve("CLI001", BigDecimal.ONE));
+        assertBalances("100.00", "0.00", "0.00");
+    }
+
+    @Test
+    void nonexistentAccountCannotHideAnOperationConflict() {
+        var original = command("30.00");
+        service.reserve(original);
+        var conflicting = new ReserveBalanceCommand(original.orderId(), original.sagaId(),
+                original.operationId(), "MISSING", original.amount());
+        assertEquals(OPERATION_CONFLICT, assertThrows(BalanceReservationException.class,
+                () -> service.reserve(conflicting)).getReason());
+        assertBalances("70.00", "30.00", "0.00");
+        assertEquals(1L, reservationCount());
     }
 
     @Test
