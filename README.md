@@ -83,8 +83,8 @@ Endpoints disponíveis em **cada** porta 8081–8085:
 | `/actuator/health/readiness` | Inclui PostgreSQL e RabbitMQ; HTTP 503 se indisponíveis |
 | `/actuator/prometheus` | Métricas em formato Prometheus |
 
-A API `/api/ordens` ainda não existe (HTTP 404). A confirmação de saúde não
-comprova publicação/consumo de mensagens nem funcionamento da Saga.
+A API `/api/ordens` registra e consulta ordens. Sua existência e a confirmação de
+saúde não comprovam publicação/consumo de mensagens nem execução da Saga.
 
 ## Encerrar e retomar
 
@@ -124,12 +124,12 @@ escalabilidade sob carga nem recuperação de uma Saga distribuída.
 ### Próximas etapas
 
 Sequência prevista a partir da especificação; manter cada item desmarcado até sua
-implementação e validação. A próxima entrega é a API de ordens com catálogo e
-idempotência HTTP.
+implementação e validação. API de ordens, catálogo e idempotência HTTP estão implementados. A próxima
+entrega é a integração confiável por mensagens, com Outbox/Inbox.
 
-- [ ] Implementar catálogo fixo/versionado e captura do preço no registro da ordem.
-- [ ] Implementar `POST /api/ordens` e consulta por `GET /api/ordens/{orderId}`, com validação e persistência do estado da ordem.
-- [ ] Implementar idempotência HTTP por cliente e `Idempotency-Key`: reenvio igual retorna a ordem original; conteúdo divergente recebe 409.
+- [x] Implementar catálogo fixo/versionado e captura do preço no registro da ordem.
+- [x] Implementar `POST /api/ordens` e consulta por `GET /api/ordens/{orderId}`, com validação e persistência do estado da ordem.
+- [x] Implementar idempotência HTTP por cliente e `Idempotency-Key`: reenvio igual retorna a ordem original; conteúdo divergente recebe 409.
 - [ ] Versionar seeds de catálogo, saldo inicial e estoque configuráveis por cenário.
 - [ ] Definir contratos de mensagens v1, roteamento RabbitMQ, validação dos envelopes e correlação por `orderId`, `sagaId` e `operationId` estável.
 - [ ] Implementar Outbox transacional, publicação persistente com publisher confirms e reenvio de publicações pendentes.
