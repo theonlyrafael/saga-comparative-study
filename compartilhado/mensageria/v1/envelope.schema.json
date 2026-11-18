@@ -1,0 +1,807 @@
+{
+  "type": "object",
+  "properties": {
+    "type": {
+      "enum": [
+        "AtivoConfirmado",
+        "AtivoRecusado",
+        "AtivoReservado",
+        "ConfirmarLiquidacao",
+        "ConfirmarReservaAtivo",
+        "ConfirmarReservaSaldo",
+        "DesfazerReservaAtivo",
+        "DesfazerReservaSaldo",
+        "FinalizarOrdem",
+        "LiquidacaoConcluida",
+        "LiquidacaoFalhou",
+        "OrdemLiquidada",
+        "OrdemRecebida",
+        "OrdemRejeitada",
+        "ReservaAtivoDesfeita",
+        "ReservaSaldoDesfeita",
+        "ReservarAtivo",
+        "ReservarSaldo",
+        "SaldoConfirmado",
+        "SaldoRecusado",
+        "SaldoReservado"
+      ]
+    },
+    "schemaVersion": {
+      "const": 1
+    },
+    "messageId": {
+      "type": "string",
+      "format": "uuid"
+    },
+    "orderId": {
+      "type": "string",
+      "format": "uuid"
+    },
+    "sagaId": {
+      "type": "string",
+      "format": "uuid"
+    },
+    "operationId": {
+      "type": "string",
+      "format": "uuid"
+    },
+    "occurredAt": {
+      "type": "string",
+      "format": "date-time"
+    },
+    "payload": {
+      "type": "object"
+    }
+  },
+  "required": [
+    "type",
+    "schemaVersion",
+    "messageId",
+    "orderId",
+    "sagaId",
+    "operationId",
+    "occurredAt",
+    "payload"
+  ],
+  "additionalProperties": false,
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$defs": {
+    "clienteId": {
+      "type": "string",
+      "minLength": 1,
+      "maxLength": 64,
+      "pattern": "\\S"
+    },
+    "ativoId": {
+      "type": "string",
+      "minLength": 1,
+      "maxLength": 128,
+      "pattern": "\\S"
+    },
+    "quantidade": {
+      "type": "integer",
+      "minimum": 1,
+      "maximum": 2147483647
+    },
+    "precoUnitario": {
+      "type": "string",
+      "pattern": "^(?!0\\.00$)(0|[1-9][0-9]{0,16})\\.[0-9]{2}$"
+    },
+    "valorTotal": {
+      "type": "string",
+      "pattern": "^(?!0\\.00$)(0|[1-9][0-9]{0,16})\\.[0-9]{2}$"
+    },
+    "versaoCatalogo": {
+      "type": "string",
+      "minLength": 1,
+      "maxLength": 128,
+      "pattern": "\\S"
+    },
+    "reservaSaldoId": {
+      "type": "string",
+      "format": "uuid"
+    },
+    "reservaAtivoId": {
+      "type": "string",
+      "format": "uuid"
+    },
+    "liquidacaoId": {
+      "type": "string",
+      "format": "uuid"
+    },
+    "motivo": {
+      "type": "string",
+      "pattern": "^[A-Z][A-Z0-9_]+$"
+    },
+    "estado": {
+      "enum": [
+        "LIQUIDADA",
+        "REJEITADA"
+      ]
+    }
+  },
+  "allOf": [
+    {
+      "if": {
+        "properties": {
+          "type": {
+            "enum": [
+              "AtivoConfirmado",
+              "ConfirmarReservaAtivo"
+            ]
+          }
+        }
+      },
+      "then": {
+        "properties": {
+          "payload": {
+            "type": "object",
+            "properties": {
+              "clienteId": {
+                "$ref": "#/$defs/clienteId"
+              },
+              "ativoId": {
+                "$ref": "#/$defs/ativoId"
+              },
+              "quantidade": {
+                "$ref": "#/$defs/quantidade"
+              },
+              "precoUnitario": {
+                "$ref": "#/$defs/precoUnitario"
+              },
+              "valorTotal": {
+                "$ref": "#/$defs/valorTotal"
+              },
+              "versaoCatalogo": {
+                "$ref": "#/$defs/versaoCatalogo"
+              },
+              "reservaAtivoId": {
+                "$ref": "#/$defs/reservaAtivoId"
+              },
+              "liquidacaoId": {
+                "$ref": "#/$defs/liquidacaoId"
+              }
+            },
+            "required": [
+              "clienteId",
+              "ativoId",
+              "quantidade",
+              "precoUnitario",
+              "valorTotal",
+              "versaoCatalogo",
+              "reservaAtivoId",
+              "liquidacaoId"
+            ],
+            "additionalProperties": false
+          }
+        }
+      }
+    },
+    {
+      "if": {
+        "properties": {
+          "type": {
+            "enum": [
+              "AtivoRecusado"
+            ]
+          }
+        }
+      },
+      "then": {
+        "properties": {
+          "payload": {
+            "type": "object",
+            "properties": {
+              "clienteId": {
+                "$ref": "#/$defs/clienteId"
+              },
+              "ativoId": {
+                "$ref": "#/$defs/ativoId"
+              },
+              "quantidade": {
+                "$ref": "#/$defs/quantidade"
+              },
+              "precoUnitario": {
+                "$ref": "#/$defs/precoUnitario"
+              },
+              "valorTotal": {
+                "$ref": "#/$defs/valorTotal"
+              },
+              "versaoCatalogo": {
+                "$ref": "#/$defs/versaoCatalogo"
+              },
+              "reservaSaldoId": {
+                "$ref": "#/$defs/reservaSaldoId"
+              },
+              "motivo": {
+                "$ref": "#/$defs/motivo"
+              }
+            },
+            "required": [
+              "clienteId",
+              "ativoId",
+              "quantidade",
+              "precoUnitario",
+              "valorTotal",
+              "versaoCatalogo",
+              "reservaSaldoId",
+              "motivo"
+            ],
+            "additionalProperties": false
+          }
+        }
+      }
+    },
+    {
+      "if": {
+        "properties": {
+          "type": {
+            "enum": [
+              "AtivoReservado",
+              "ConfirmarLiquidacao"
+            ]
+          }
+        }
+      },
+      "then": {
+        "properties": {
+          "payload": {
+            "type": "object",
+            "properties": {
+              "clienteId": {
+                "$ref": "#/$defs/clienteId"
+              },
+              "ativoId": {
+                "$ref": "#/$defs/ativoId"
+              },
+              "quantidade": {
+                "$ref": "#/$defs/quantidade"
+              },
+              "precoUnitario": {
+                "$ref": "#/$defs/precoUnitario"
+              },
+              "valorTotal": {
+                "$ref": "#/$defs/valorTotal"
+              },
+              "versaoCatalogo": {
+                "$ref": "#/$defs/versaoCatalogo"
+              },
+              "reservaSaldoId": {
+                "$ref": "#/$defs/reservaSaldoId"
+              },
+              "reservaAtivoId": {
+                "$ref": "#/$defs/reservaAtivoId"
+              }
+            },
+            "required": [
+              "clienteId",
+              "ativoId",
+              "quantidade",
+              "precoUnitario",
+              "valorTotal",
+              "versaoCatalogo",
+              "reservaSaldoId",
+              "reservaAtivoId"
+            ],
+            "additionalProperties": false
+          }
+        }
+      }
+    },
+    {
+      "if": {
+        "properties": {
+          "type": {
+            "enum": [
+              "ConfirmarReservaSaldo",
+              "SaldoConfirmado"
+            ]
+          }
+        }
+      },
+      "then": {
+        "properties": {
+          "payload": {
+            "type": "object",
+            "properties": {
+              "clienteId": {
+                "$ref": "#/$defs/clienteId"
+              },
+              "ativoId": {
+                "$ref": "#/$defs/ativoId"
+              },
+              "quantidade": {
+                "$ref": "#/$defs/quantidade"
+              },
+              "precoUnitario": {
+                "$ref": "#/$defs/precoUnitario"
+              },
+              "valorTotal": {
+                "$ref": "#/$defs/valorTotal"
+              },
+              "versaoCatalogo": {
+                "$ref": "#/$defs/versaoCatalogo"
+              },
+              "reservaSaldoId": {
+                "$ref": "#/$defs/reservaSaldoId"
+              },
+              "liquidacaoId": {
+                "$ref": "#/$defs/liquidacaoId"
+              }
+            },
+            "required": [
+              "clienteId",
+              "ativoId",
+              "quantidade",
+              "precoUnitario",
+              "valorTotal",
+              "versaoCatalogo",
+              "reservaSaldoId",
+              "liquidacaoId"
+            ],
+            "additionalProperties": false
+          }
+        }
+      }
+    },
+    {
+      "if": {
+        "properties": {
+          "type": {
+            "enum": [
+              "DesfazerReservaAtivo",
+              "ReservaAtivoDesfeita"
+            ]
+          }
+        }
+      },
+      "then": {
+        "properties": {
+          "payload": {
+            "type": "object",
+            "properties": {
+              "clienteId": {
+                "$ref": "#/$defs/clienteId"
+              },
+              "ativoId": {
+                "$ref": "#/$defs/ativoId"
+              },
+              "quantidade": {
+                "$ref": "#/$defs/quantidade"
+              },
+              "precoUnitario": {
+                "$ref": "#/$defs/precoUnitario"
+              },
+              "valorTotal": {
+                "$ref": "#/$defs/valorTotal"
+              },
+              "versaoCatalogo": {
+                "$ref": "#/$defs/versaoCatalogo"
+              },
+              "reservaAtivoId": {
+                "$ref": "#/$defs/reservaAtivoId"
+              }
+            },
+            "required": [
+              "clienteId",
+              "ativoId",
+              "quantidade",
+              "precoUnitario",
+              "valorTotal",
+              "versaoCatalogo",
+              "reservaAtivoId"
+            ],
+            "additionalProperties": false
+          }
+        }
+      }
+    },
+    {
+      "if": {
+        "properties": {
+          "type": {
+            "enum": [
+              "DesfazerReservaSaldo",
+              "ReservaSaldoDesfeita",
+              "ReservarAtivo",
+              "SaldoReservado"
+            ]
+          }
+        }
+      },
+      "then": {
+        "properties": {
+          "payload": {
+            "type": "object",
+            "properties": {
+              "clienteId": {
+                "$ref": "#/$defs/clienteId"
+              },
+              "ativoId": {
+                "$ref": "#/$defs/ativoId"
+              },
+              "quantidade": {
+                "$ref": "#/$defs/quantidade"
+              },
+              "precoUnitario": {
+                "$ref": "#/$defs/precoUnitario"
+              },
+              "valorTotal": {
+                "$ref": "#/$defs/valorTotal"
+              },
+              "versaoCatalogo": {
+                "$ref": "#/$defs/versaoCatalogo"
+              },
+              "reservaSaldoId": {
+                "$ref": "#/$defs/reservaSaldoId"
+              }
+            },
+            "required": [
+              "clienteId",
+              "ativoId",
+              "quantidade",
+              "precoUnitario",
+              "valorTotal",
+              "versaoCatalogo",
+              "reservaSaldoId"
+            ],
+            "additionalProperties": false
+          }
+        }
+      }
+    },
+    {
+      "if": {
+        "properties": {
+          "type": {
+            "enum": [
+              "FinalizarOrdem"
+            ]
+          }
+        }
+      },
+      "then": {
+        "properties": {
+          "payload": {
+            "type": "object",
+            "properties": {
+              "clienteId": {
+                "$ref": "#/$defs/clienteId"
+              },
+              "ativoId": {
+                "$ref": "#/$defs/ativoId"
+              },
+              "quantidade": {
+                "$ref": "#/$defs/quantidade"
+              },
+              "precoUnitario": {
+                "$ref": "#/$defs/precoUnitario"
+              },
+              "valorTotal": {
+                "$ref": "#/$defs/valorTotal"
+              },
+              "versaoCatalogo": {
+                "$ref": "#/$defs/versaoCatalogo"
+              },
+              "estado": {
+                "$ref": "#/$defs/estado"
+              },
+              "motivo": {
+                "$ref": "#/$defs/motivo"
+              },
+              "liquidacaoId": {
+                "$ref": "#/$defs/liquidacaoId"
+              }
+            },
+            "required": [
+              "clienteId",
+              "ativoId",
+              "quantidade",
+              "precoUnitario",
+              "valorTotal",
+              "versaoCatalogo",
+              "estado"
+            ],
+            "additionalProperties": false,
+            "if": {
+              "properties": {
+                "estado": {
+                  "const": "LIQUIDADA"
+                }
+              }
+            },
+            "then": {
+              "required": [
+                "liquidacaoId"
+              ],
+              "not": {
+                "required": [
+                  "motivo"
+                ]
+              }
+            },
+            "else": {
+              "required": [
+                "motivo"
+              ],
+              "not": {
+                "required": [
+                  "liquidacaoId"
+                ]
+              }
+            }
+          }
+        }
+      }
+    },
+    {
+      "if": {
+        "properties": {
+          "type": {
+            "enum": [
+              "LiquidacaoConcluida"
+            ]
+          }
+        }
+      },
+      "then": {
+        "properties": {
+          "payload": {
+            "type": "object",
+            "properties": {
+              "clienteId": {
+                "$ref": "#/$defs/clienteId"
+              },
+              "ativoId": {
+                "$ref": "#/$defs/ativoId"
+              },
+              "quantidade": {
+                "$ref": "#/$defs/quantidade"
+              },
+              "precoUnitario": {
+                "$ref": "#/$defs/precoUnitario"
+              },
+              "valorTotal": {
+                "$ref": "#/$defs/valorTotal"
+              },
+              "versaoCatalogo": {
+                "$ref": "#/$defs/versaoCatalogo"
+              },
+              "reservaSaldoId": {
+                "$ref": "#/$defs/reservaSaldoId"
+              },
+              "reservaAtivoId": {
+                "$ref": "#/$defs/reservaAtivoId"
+              },
+              "liquidacaoId": {
+                "$ref": "#/$defs/liquidacaoId"
+              }
+            },
+            "required": [
+              "clienteId",
+              "ativoId",
+              "quantidade",
+              "precoUnitario",
+              "valorTotal",
+              "versaoCatalogo",
+              "reservaSaldoId",
+              "reservaAtivoId",
+              "liquidacaoId"
+            ],
+            "additionalProperties": false
+          }
+        }
+      }
+    },
+    {
+      "if": {
+        "properties": {
+          "type": {
+            "enum": [
+              "LiquidacaoFalhou"
+            ]
+          }
+        }
+      },
+      "then": {
+        "properties": {
+          "payload": {
+            "type": "object",
+            "properties": {
+              "clienteId": {
+                "$ref": "#/$defs/clienteId"
+              },
+              "ativoId": {
+                "$ref": "#/$defs/ativoId"
+              },
+              "quantidade": {
+                "$ref": "#/$defs/quantidade"
+              },
+              "precoUnitario": {
+                "$ref": "#/$defs/precoUnitario"
+              },
+              "valorTotal": {
+                "$ref": "#/$defs/valorTotal"
+              },
+              "versaoCatalogo": {
+                "$ref": "#/$defs/versaoCatalogo"
+              },
+              "reservaSaldoId": {
+                "$ref": "#/$defs/reservaSaldoId"
+              },
+              "reservaAtivoId": {
+                "$ref": "#/$defs/reservaAtivoId"
+              },
+              "motivo": {
+                "$ref": "#/$defs/motivo"
+              }
+            },
+            "required": [
+              "clienteId",
+              "ativoId",
+              "quantidade",
+              "precoUnitario",
+              "valorTotal",
+              "versaoCatalogo",
+              "reservaSaldoId",
+              "reservaAtivoId",
+              "motivo"
+            ],
+            "additionalProperties": false
+          }
+        }
+      }
+    },
+    {
+      "if": {
+        "properties": {
+          "type": {
+            "enum": [
+              "OrdemLiquidada"
+            ]
+          }
+        }
+      },
+      "then": {
+        "properties": {
+          "payload": {
+            "type": "object",
+            "properties": {
+              "clienteId": {
+                "$ref": "#/$defs/clienteId"
+              },
+              "ativoId": {
+                "$ref": "#/$defs/ativoId"
+              },
+              "quantidade": {
+                "$ref": "#/$defs/quantidade"
+              },
+              "precoUnitario": {
+                "$ref": "#/$defs/precoUnitario"
+              },
+              "valorTotal": {
+                "$ref": "#/$defs/valorTotal"
+              },
+              "versaoCatalogo": {
+                "$ref": "#/$defs/versaoCatalogo"
+              },
+              "liquidacaoId": {
+                "$ref": "#/$defs/liquidacaoId"
+              }
+            },
+            "required": [
+              "clienteId",
+              "ativoId",
+              "quantidade",
+              "precoUnitario",
+              "valorTotal",
+              "versaoCatalogo",
+              "liquidacaoId"
+            ],
+            "additionalProperties": false
+          }
+        }
+      }
+    },
+    {
+      "if": {
+        "properties": {
+          "type": {
+            "enum": [
+              "OrdemRecebida",
+              "ReservarSaldo"
+            ]
+          }
+        }
+      },
+      "then": {
+        "properties": {
+          "payload": {
+            "type": "object",
+            "properties": {
+              "clienteId": {
+                "$ref": "#/$defs/clienteId"
+              },
+              "ativoId": {
+                "$ref": "#/$defs/ativoId"
+              },
+              "quantidade": {
+                "$ref": "#/$defs/quantidade"
+              },
+              "precoUnitario": {
+                "$ref": "#/$defs/precoUnitario"
+              },
+              "valorTotal": {
+                "$ref": "#/$defs/valorTotal"
+              },
+              "versaoCatalogo": {
+                "$ref": "#/$defs/versaoCatalogo"
+              }
+            },
+            "required": [
+              "clienteId",
+              "ativoId",
+              "quantidade",
+              "precoUnitario",
+              "valorTotal",
+              "versaoCatalogo"
+            ],
+            "additionalProperties": false
+          }
+        }
+      }
+    },
+    {
+      "if": {
+        "properties": {
+          "type": {
+            "enum": [
+              "OrdemRejeitada",
+              "SaldoRecusado"
+            ]
+          }
+        }
+      },
+      "then": {
+        "properties": {
+          "payload": {
+            "type": "object",
+            "properties": {
+              "clienteId": {
+                "$ref": "#/$defs/clienteId"
+              },
+              "ativoId": {
+                "$ref": "#/$defs/ativoId"
+              },
+              "quantidade": {
+                "$ref": "#/$defs/quantidade"
+              },
+              "precoUnitario": {
+                "$ref": "#/$defs/precoUnitario"
+              },
+              "valorTotal": {
+                "$ref": "#/$defs/valorTotal"
+              },
+              "versaoCatalogo": {
+                "$ref": "#/$defs/versaoCatalogo"
+              },
+              "motivo": {
+                "$ref": "#/$defs/motivo"
+              }
+            },
+            "required": [
+              "clienteId",
+              "ativoId",
+              "quantidade",
+              "precoUnitario",
+              "valorTotal",
+              "versaoCatalogo",
+              "motivo"
+            ],
+            "additionalProperties": false
+          }
+        }
+      }
+    }
+  ]
+}
