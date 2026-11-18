@@ -30,3 +30,21 @@ combinações proibidas. Sua tabela de diagnóstico é revertida na mesma transa
 
 A instância única compartilha o domínio de falha; veja
 [decisão de isolamento](../docs/decisions/0002-local-data-isolation.md).
+
+## Configurar roteamento RabbitMQ v1
+
+Após o Compose indicar RabbitMQ saudável, execute na raiz do checkout:
+
+    bash infra/scripts/configure-rabbitmq.sh
+
+O script requer Python 3, lê infra/.env e importa as definições pelo endpoint
+local de gerenciamento no vhost configurado. Pode ser repetido no mesmo vhost.
+As definições duráveis ficam no volume do broker. Para validar todas as rotas,
+a ausência de rota para uma chave desconhecida e a rejeição para DLQ, execute
+em Bash na raiz:
+
+    (set -a; source infra/.env; set +a; PYTHONDONTWRITEBYTECODE=1 python3 infra/rabbitmq/test_routes.py)
+
+O teste cria e remove seu próprio vhost com o usuário administrativo do Compose.
+Os payloads de diagnóstico exercitam somente o transporte. A validação dos
+payloads de negócio está nos testes de contrato em compartilhado/mensageria.
