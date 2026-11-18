@@ -46,6 +46,7 @@ test -e infra/.env || cp infra/.env.example infra/.env
 # Edite infra/.env e substitua todos os CHANGE_ME por senhas locais distintas.
 docker compose --env-file infra/.env -f infra/compose.yaml config --quiet
 docker compose --env-file infra/.env -f infra/compose.yaml up -d --wait
+bash infra/scripts/configure-rabbitmq.sh
 bash infra/scripts/check-database-isolation.sh
 cd orquestrada
 ./mvnw clean verify
@@ -163,14 +164,15 @@ clienteId não representa identidade autenticada. Não a exponha externamente an
 de implementar esses controles. O [contrato de ordens](docs/decisions/0006-order-api.md)
 detalha idempotência, erros e limites desta entrega.
 
+- [x] Definir o [contrato v1](compartilhado/README.md) e configurar e testar [filas, roteamento e DLQs no RabbitMQ](infra/README.md).
+
 ### Próximas etapas
 
 Sequência prevista a partir da especificação; manter cada item desmarcado até sua
 implementação e validação. API de ordens, catálogo e idempotência HTTP estão implementados. A próxima
-entrega é a integração confiável por mensagens, com Outbox/Inbox.
+entrega é gravar OrdemRecebida na Outbox junto com a ordem e publicar com confirmação.
 
 - [ ] Versionar seeds de catálogo, saldo inicial e estoque configuráveis por cenário.
-- [ ] Definir contratos de mensagens v1, roteamento RabbitMQ, validação dos envelopes e correlação por `orderId`, `sagaId` e `operationId` estável.
 - [ ] Implementar Outbox transacional, publicação persistente com publisher confirms e reenvio de publicações pendentes.
 - [ ] Implementar consumidores idempotentes/Inbox, resultados duráveis das operações, ACK após commit, retries e DLQ para erros de contrato.
 - [ ] Implementar o motor persistente da Saga, com estados técnicos, etapas, prazos e consulta restrita de diagnóstico.
