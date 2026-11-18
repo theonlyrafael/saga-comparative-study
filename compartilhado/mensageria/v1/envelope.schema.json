@@ -50,7 +50,35 @@
       "format": "date-time"
     },
     "payload": {
-      "type": "object"
+      "type": "object",
+      "properties": {
+        "clienteId": {
+          "$ref": "#/$defs/clienteId"
+        },
+        "ativoId": {
+          "$ref": "#/$defs/ativoId"
+        },
+        "quantidade": {
+          "$ref": "#/$defs/quantidade"
+        },
+        "precoUnitario": {
+          "$ref": "#/$defs/precoUnitario"
+        },
+        "valorTotal": {
+          "$ref": "#/$defs/valorTotal"
+        },
+        "versaoCatalogo": {
+          "$ref": "#/$defs/versaoCatalogo"
+        }
+      },
+      "required": [
+        "clienteId",
+        "ativoId",
+        "quantidade",
+        "precoUnitario",
+        "valorTotal",
+        "versaoCatalogo"
+      ]
     }
   },
   "required": [
@@ -135,26 +163,7 @@
       "then": {
         "properties": {
           "payload": {
-            "type": "object",
             "properties": {
-              "clienteId": {
-                "$ref": "#/$defs/clienteId"
-              },
-              "ativoId": {
-                "$ref": "#/$defs/ativoId"
-              },
-              "quantidade": {
-                "$ref": "#/$defs/quantidade"
-              },
-              "precoUnitario": {
-                "$ref": "#/$defs/precoUnitario"
-              },
-              "valorTotal": {
-                "$ref": "#/$defs/valorTotal"
-              },
-              "versaoCatalogo": {
-                "$ref": "#/$defs/versaoCatalogo"
-              },
               "reservaAtivoId": {
                 "$ref": "#/$defs/reservaAtivoId"
               },
@@ -163,16 +172,21 @@
               }
             },
             "required": [
-              "clienteId",
-              "ativoId",
-              "quantidade",
-              "precoUnitario",
-              "valorTotal",
-              "versaoCatalogo",
               "reservaAtivoId",
               "liquidacaoId"
             ],
-            "additionalProperties": false
+            "propertyNames": {
+              "enum": [
+                "clienteId",
+                "ativoId",
+                "quantidade",
+                "precoUnitario",
+                "valorTotal",
+                "versaoCatalogo",
+                "reservaAtivoId",
+                "liquidacaoId"
+              ]
+            }
           }
         }
       }
@@ -190,26 +204,7 @@
       "then": {
         "properties": {
           "payload": {
-            "type": "object",
             "properties": {
-              "clienteId": {
-                "$ref": "#/$defs/clienteId"
-              },
-              "ativoId": {
-                "$ref": "#/$defs/ativoId"
-              },
-              "quantidade": {
-                "$ref": "#/$defs/quantidade"
-              },
-              "precoUnitario": {
-                "$ref": "#/$defs/precoUnitario"
-              },
-              "valorTotal": {
-                "$ref": "#/$defs/valorTotal"
-              },
-              "versaoCatalogo": {
-                "$ref": "#/$defs/versaoCatalogo"
-              },
               "reservaSaldoId": {
                 "$ref": "#/$defs/reservaSaldoId"
               },
@@ -218,16 +213,21 @@
               }
             },
             "required": [
-              "clienteId",
-              "ativoId",
-              "quantidade",
-              "precoUnitario",
-              "valorTotal",
-              "versaoCatalogo",
               "reservaSaldoId",
               "motivo"
             ],
-            "additionalProperties": false
+            "propertyNames": {
+              "enum": [
+                "clienteId",
+                "ativoId",
+                "quantidade",
+                "precoUnitario",
+                "valorTotal",
+                "versaoCatalogo",
+                "reservaSaldoId",
+                "motivo"
+              ]
+            }
           }
         }
       }
@@ -246,26 +246,7 @@
       "then": {
         "properties": {
           "payload": {
-            "type": "object",
             "properties": {
-              "clienteId": {
-                "$ref": "#/$defs/clienteId"
-              },
-              "ativoId": {
-                "$ref": "#/$defs/ativoId"
-              },
-              "quantidade": {
-                "$ref": "#/$defs/quantidade"
-              },
-              "precoUnitario": {
-                "$ref": "#/$defs/precoUnitario"
-              },
-              "valorTotal": {
-                "$ref": "#/$defs/valorTotal"
-              },
-              "versaoCatalogo": {
-                "$ref": "#/$defs/versaoCatalogo"
-              },
               "reservaSaldoId": {
                 "$ref": "#/$defs/reservaSaldoId"
               },
@@ -274,16 +255,21 @@
               }
             },
             "required": [
-              "clienteId",
-              "ativoId",
-              "quantidade",
-              "precoUnitario",
-              "valorTotal",
-              "versaoCatalogo",
               "reservaSaldoId",
               "reservaAtivoId"
             ],
-            "additionalProperties": false
+            "propertyNames": {
+              "enum": [
+                "clienteId",
+                "ativoId",
+                "quantidade",
+                "precoUnitario",
+                "valorTotal",
+                "versaoCatalogo",
+                "reservaSaldoId",
+                "reservaAtivoId"
+              ]
+            }
           }
         }
       }
@@ -302,26 +288,7 @@
       "then": {
         "properties": {
           "payload": {
-            "type": "object",
             "properties": {
-              "clienteId": {
-                "$ref": "#/$defs/clienteId"
-              },
-              "ativoId": {
-                "$ref": "#/$defs/ativoId"
-              },
-              "quantidade": {
-                "$ref": "#/$defs/quantidade"
-              },
-              "precoUnitario": {
-                "$ref": "#/$defs/precoUnitario"
-              },
-              "valorTotal": {
-                "$ref": "#/$defs/valorTotal"
-              },
-              "versaoCatalogo": {
-                "$ref": "#/$defs/versaoCatalogo"
-              },
               "reservaSaldoId": {
                 "$ref": "#/$defs/reservaSaldoId"
               },
@@ -330,16 +297,21 @@
               }
             },
             "required": [
-              "clienteId",
-              "ativoId",
-              "quantidade",
-              "precoUnitario",
-              "valorTotal",
-              "versaoCatalogo",
               "reservaSaldoId",
               "liquidacaoId"
             ],
-            "additionalProperties": false
+            "propertyNames": {
+              "enum": [
+                "clienteId",
+                "ativoId",
+                "quantidade",
+                "precoUnitario",
+                "valorTotal",
+                "versaoCatalogo",
+                "reservaSaldoId",
+                "liquidacaoId"
+              ]
+            }
           }
         }
       }
@@ -358,40 +330,25 @@
       "then": {
         "properties": {
           "payload": {
-            "type": "object",
             "properties": {
-              "clienteId": {
-                "$ref": "#/$defs/clienteId"
-              },
-              "ativoId": {
-                "$ref": "#/$defs/ativoId"
-              },
-              "quantidade": {
-                "$ref": "#/$defs/quantidade"
-              },
-              "precoUnitario": {
-                "$ref": "#/$defs/precoUnitario"
-              },
-              "valorTotal": {
-                "$ref": "#/$defs/valorTotal"
-              },
-              "versaoCatalogo": {
-                "$ref": "#/$defs/versaoCatalogo"
-              },
               "reservaAtivoId": {
                 "$ref": "#/$defs/reservaAtivoId"
               }
             },
             "required": [
-              "clienteId",
-              "ativoId",
-              "quantidade",
-              "precoUnitario",
-              "valorTotal",
-              "versaoCatalogo",
               "reservaAtivoId"
             ],
-            "additionalProperties": false
+            "propertyNames": {
+              "enum": [
+                "clienteId",
+                "ativoId",
+                "quantidade",
+                "precoUnitario",
+                "valorTotal",
+                "versaoCatalogo",
+                "reservaAtivoId"
+              ]
+            }
           }
         }
       }
@@ -412,40 +369,25 @@
       "then": {
         "properties": {
           "payload": {
-            "type": "object",
             "properties": {
-              "clienteId": {
-                "$ref": "#/$defs/clienteId"
-              },
-              "ativoId": {
-                "$ref": "#/$defs/ativoId"
-              },
-              "quantidade": {
-                "$ref": "#/$defs/quantidade"
-              },
-              "precoUnitario": {
-                "$ref": "#/$defs/precoUnitario"
-              },
-              "valorTotal": {
-                "$ref": "#/$defs/valorTotal"
-              },
-              "versaoCatalogo": {
-                "$ref": "#/$defs/versaoCatalogo"
-              },
               "reservaSaldoId": {
                 "$ref": "#/$defs/reservaSaldoId"
               }
             },
             "required": [
-              "clienteId",
-              "ativoId",
-              "quantidade",
-              "precoUnitario",
-              "valorTotal",
-              "versaoCatalogo",
               "reservaSaldoId"
             ],
-            "additionalProperties": false
+            "propertyNames": {
+              "enum": [
+                "clienteId",
+                "ativoId",
+                "quantidade",
+                "precoUnitario",
+                "valorTotal",
+                "versaoCatalogo",
+                "reservaSaldoId"
+              ]
+            }
           }
         }
       }
@@ -463,26 +405,7 @@
       "then": {
         "properties": {
           "payload": {
-            "type": "object",
             "properties": {
-              "clienteId": {
-                "$ref": "#/$defs/clienteId"
-              },
-              "ativoId": {
-                "$ref": "#/$defs/ativoId"
-              },
-              "quantidade": {
-                "$ref": "#/$defs/quantidade"
-              },
-              "precoUnitario": {
-                "$ref": "#/$defs/precoUnitario"
-              },
-              "valorTotal": {
-                "$ref": "#/$defs/valorTotal"
-              },
-              "versaoCatalogo": {
-                "$ref": "#/$defs/versaoCatalogo"
-              },
               "estado": {
                 "$ref": "#/$defs/estado"
               },
@@ -494,15 +417,8 @@
               }
             },
             "required": [
-              "clienteId",
-              "ativoId",
-              "quantidade",
-              "precoUnitario",
-              "valorTotal",
-              "versaoCatalogo",
               "estado"
             ],
-            "additionalProperties": false,
             "if": {
               "properties": {
                 "estado": {
@@ -529,6 +445,19 @@
                   "liquidacaoId"
                 ]
               }
+            },
+            "propertyNames": {
+              "enum": [
+                "clienteId",
+                "ativoId",
+                "quantidade",
+                "precoUnitario",
+                "valorTotal",
+                "versaoCatalogo",
+                "estado",
+                "motivo",
+                "liquidacaoId"
+              ]
             }
           }
         }
@@ -547,26 +476,7 @@
       "then": {
         "properties": {
           "payload": {
-            "type": "object",
             "properties": {
-              "clienteId": {
-                "$ref": "#/$defs/clienteId"
-              },
-              "ativoId": {
-                "$ref": "#/$defs/ativoId"
-              },
-              "quantidade": {
-                "$ref": "#/$defs/quantidade"
-              },
-              "precoUnitario": {
-                "$ref": "#/$defs/precoUnitario"
-              },
-              "valorTotal": {
-                "$ref": "#/$defs/valorTotal"
-              },
-              "versaoCatalogo": {
-                "$ref": "#/$defs/versaoCatalogo"
-              },
               "reservaSaldoId": {
                 "$ref": "#/$defs/reservaSaldoId"
               },
@@ -578,17 +488,23 @@
               }
             },
             "required": [
-              "clienteId",
-              "ativoId",
-              "quantidade",
-              "precoUnitario",
-              "valorTotal",
-              "versaoCatalogo",
               "reservaSaldoId",
               "reservaAtivoId",
               "liquidacaoId"
             ],
-            "additionalProperties": false
+            "propertyNames": {
+              "enum": [
+                "clienteId",
+                "ativoId",
+                "quantidade",
+                "precoUnitario",
+                "valorTotal",
+                "versaoCatalogo",
+                "reservaSaldoId",
+                "reservaAtivoId",
+                "liquidacaoId"
+              ]
+            }
           }
         }
       }
@@ -606,26 +522,7 @@
       "then": {
         "properties": {
           "payload": {
-            "type": "object",
             "properties": {
-              "clienteId": {
-                "$ref": "#/$defs/clienteId"
-              },
-              "ativoId": {
-                "$ref": "#/$defs/ativoId"
-              },
-              "quantidade": {
-                "$ref": "#/$defs/quantidade"
-              },
-              "precoUnitario": {
-                "$ref": "#/$defs/precoUnitario"
-              },
-              "valorTotal": {
-                "$ref": "#/$defs/valorTotal"
-              },
-              "versaoCatalogo": {
-                "$ref": "#/$defs/versaoCatalogo"
-              },
               "reservaSaldoId": {
                 "$ref": "#/$defs/reservaSaldoId"
               },
@@ -637,17 +534,23 @@
               }
             },
             "required": [
-              "clienteId",
-              "ativoId",
-              "quantidade",
-              "precoUnitario",
-              "valorTotal",
-              "versaoCatalogo",
               "reservaSaldoId",
               "reservaAtivoId",
               "motivo"
             ],
-            "additionalProperties": false
+            "propertyNames": {
+              "enum": [
+                "clienteId",
+                "ativoId",
+                "quantidade",
+                "precoUnitario",
+                "valorTotal",
+                "versaoCatalogo",
+                "reservaSaldoId",
+                "reservaAtivoId",
+                "motivo"
+              ]
+            }
           }
         }
       }
@@ -665,40 +568,25 @@
       "then": {
         "properties": {
           "payload": {
-            "type": "object",
             "properties": {
-              "clienteId": {
-                "$ref": "#/$defs/clienteId"
-              },
-              "ativoId": {
-                "$ref": "#/$defs/ativoId"
-              },
-              "quantidade": {
-                "$ref": "#/$defs/quantidade"
-              },
-              "precoUnitario": {
-                "$ref": "#/$defs/precoUnitario"
-              },
-              "valorTotal": {
-                "$ref": "#/$defs/valorTotal"
-              },
-              "versaoCatalogo": {
-                "$ref": "#/$defs/versaoCatalogo"
-              },
               "liquidacaoId": {
                 "$ref": "#/$defs/liquidacaoId"
               }
             },
             "required": [
-              "clienteId",
-              "ativoId",
-              "quantidade",
-              "precoUnitario",
-              "valorTotal",
-              "versaoCatalogo",
               "liquidacaoId"
             ],
-            "additionalProperties": false
+            "propertyNames": {
+              "enum": [
+                "clienteId",
+                "ativoId",
+                "quantidade",
+                "precoUnitario",
+                "valorTotal",
+                "versaoCatalogo",
+                "liquidacaoId"
+              ]
+            }
           }
         }
       }
@@ -717,36 +605,17 @@
       "then": {
         "properties": {
           "payload": {
-            "type": "object",
-            "properties": {
-              "clienteId": {
-                "$ref": "#/$defs/clienteId"
-              },
-              "ativoId": {
-                "$ref": "#/$defs/ativoId"
-              },
-              "quantidade": {
-                "$ref": "#/$defs/quantidade"
-              },
-              "precoUnitario": {
-                "$ref": "#/$defs/precoUnitario"
-              },
-              "valorTotal": {
-                "$ref": "#/$defs/valorTotal"
-              },
-              "versaoCatalogo": {
-                "$ref": "#/$defs/versaoCatalogo"
-              }
-            },
-            "required": [
-              "clienteId",
-              "ativoId",
-              "quantidade",
-              "precoUnitario",
-              "valorTotal",
-              "versaoCatalogo"
-            ],
-            "additionalProperties": false
+            "properties": {},
+            "propertyNames": {
+              "enum": [
+                "clienteId",
+                "ativoId",
+                "quantidade",
+                "precoUnitario",
+                "valorTotal",
+                "versaoCatalogo"
+              ]
+            }
           }
         }
       }
@@ -765,40 +634,25 @@
       "then": {
         "properties": {
           "payload": {
-            "type": "object",
             "properties": {
-              "clienteId": {
-                "$ref": "#/$defs/clienteId"
-              },
-              "ativoId": {
-                "$ref": "#/$defs/ativoId"
-              },
-              "quantidade": {
-                "$ref": "#/$defs/quantidade"
-              },
-              "precoUnitario": {
-                "$ref": "#/$defs/precoUnitario"
-              },
-              "valorTotal": {
-                "$ref": "#/$defs/valorTotal"
-              },
-              "versaoCatalogo": {
-                "$ref": "#/$defs/versaoCatalogo"
-              },
               "motivo": {
                 "$ref": "#/$defs/motivo"
               }
             },
             "required": [
-              "clienteId",
-              "ativoId",
-              "quantidade",
-              "precoUnitario",
-              "valorTotal",
-              "versaoCatalogo",
               "motivo"
             ],
-            "additionalProperties": false
+            "propertyNames": {
+              "enum": [
+                "clienteId",
+                "ativoId",
+                "quantidade",
+                "precoUnitario",
+                "valorTotal",
+                "versaoCatalogo",
+                "motivo"
+              ]
+            }
           }
         }
       }
