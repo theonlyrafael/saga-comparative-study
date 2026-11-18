@@ -258,6 +258,21 @@ class OrderApiIntegrationTest {
         assertThat(row.get("published_at")).isNull();
     }
 
+    @Test
+    void eventWriteFailureRollsBackOrderAndKey() throws Exception {
+        jdbc.execute("ALTER TABLE outbox_messages ADD CONSTRAINT simulated_failure CHECK (false)");
+        try {
+            assertThat(post("k", body).statusCode()).isEqualTo(500);
+            assertThat(count("orders")).isZero();
+            assertThat(count("http_idempotency")).isZero();
+            assertThat(count("outbox_messages")).isZero();
+        } finally {
+            jdbc.execute("ALTER TABLE outbox_messages DROP CONSTRAINT simulated_failure");
+        }
+        assertThat(post("k", body).statusCode()).isEqualTo(202);
+        assertThat(count("outbox_messages")).isEqualTo(1);
+    }
+
     long count(String table) {
         return jdbc.queryForObject("SELECT count(*) FROM " + table, Long.class);
     }
