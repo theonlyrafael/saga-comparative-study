@@ -1,0 +1,289 @@
+{
+  "exchanges": [
+    {
+      "name": "saga.v1.commands",
+      "type": "direct",
+      "durable": true,
+      "auto_delete": false,
+      "internal": false,
+      "arguments": {}
+    },
+    {
+      "name": "saga.v1.responses",
+      "type": "direct",
+      "durable": true,
+      "auto_delete": false,
+      "internal": false,
+      "arguments": {}
+    },
+    {
+      "name": "saga.v1.errors",
+      "type": "direct",
+      "durable": true,
+      "auto_delete": false,
+      "internal": false,
+      "arguments": {}
+    }
+  ],
+  "queues": [
+    {
+      "name": "saga.v1.account",
+      "durable": true,
+      "auto_delete": false,
+      "arguments": {
+        "x-dead-letter-exchange": "saga.v1.errors",
+        "x-dead-letter-routing-key": "account"
+      }
+    },
+    {
+      "name": "saga.v1.account.dlq",
+      "durable": true,
+      "auto_delete": false,
+      "arguments": {}
+    },
+    {
+      "name": "saga.v1.custody",
+      "durable": true,
+      "auto_delete": false,
+      "arguments": {
+        "x-dead-letter-exchange": "saga.v1.errors",
+        "x-dead-letter-routing-key": "custody"
+      }
+    },
+    {
+      "name": "saga.v1.custody.dlq",
+      "durable": true,
+      "auto_delete": false,
+      "arguments": {}
+    },
+    {
+      "name": "saga.v1.settlement",
+      "durable": true,
+      "auto_delete": false,
+      "arguments": {
+        "x-dead-letter-exchange": "saga.v1.errors",
+        "x-dead-letter-routing-key": "settlement"
+      }
+    },
+    {
+      "name": "saga.v1.settlement.dlq",
+      "durable": true,
+      "auto_delete": false,
+      "arguments": {}
+    },
+    {
+      "name": "saga.v1.order",
+      "durable": true,
+      "auto_delete": false,
+      "arguments": {
+        "x-dead-letter-exchange": "saga.v1.errors",
+        "x-dead-letter-routing-key": "order"
+      }
+    },
+    {
+      "name": "saga.v1.order.dlq",
+      "durable": true,
+      "auto_delete": false,
+      "arguments": {}
+    },
+    {
+      "name": "saga.v1.orchestrator",
+      "durable": true,
+      "auto_delete": false,
+      "arguments": {
+        "x-dead-letter-exchange": "saga.v1.errors",
+        "x-dead-letter-routing-key": "orchestrator"
+      }
+    },
+    {
+      "name": "saga.v1.orchestrator.dlq",
+      "durable": true,
+      "auto_delete": false,
+      "arguments": {}
+    }
+  ],
+  "bindings": [
+    {
+      "source": "saga.v1.errors",
+      "destination": "saga.v1.account.dlq",
+      "destination_type": "queue",
+      "routing_key": "account",
+      "arguments": {}
+    },
+    {
+      "source": "saga.v1.commands",
+      "destination": "saga.v1.account",
+      "destination_type": "queue",
+      "routing_key": "ReservarSaldo",
+      "arguments": {}
+    },
+    {
+      "source": "saga.v1.commands",
+      "destination": "saga.v1.account",
+      "destination_type": "queue",
+      "routing_key": "ConfirmarReservaSaldo",
+      "arguments": {}
+    },
+    {
+      "source": "saga.v1.commands",
+      "destination": "saga.v1.account",
+      "destination_type": "queue",
+      "routing_key": "DesfazerReservaSaldo",
+      "arguments": {}
+    },
+    {
+      "source": "saga.v1.errors",
+      "destination": "saga.v1.custody.dlq",
+      "destination_type": "queue",
+      "routing_key": "custody",
+      "arguments": {}
+    },
+    {
+      "source": "saga.v1.commands",
+      "destination": "saga.v1.custody",
+      "destination_type": "queue",
+      "routing_key": "ReservarAtivo",
+      "arguments": {}
+    },
+    {
+      "source": "saga.v1.commands",
+      "destination": "saga.v1.custody",
+      "destination_type": "queue",
+      "routing_key": "ConfirmarReservaAtivo",
+      "arguments": {}
+    },
+    {
+      "source": "saga.v1.commands",
+      "destination": "saga.v1.custody",
+      "destination_type": "queue",
+      "routing_key": "DesfazerReservaAtivo",
+      "arguments": {}
+    },
+    {
+      "source": "saga.v1.errors",
+      "destination": "saga.v1.settlement.dlq",
+      "destination_type": "queue",
+      "routing_key": "settlement",
+      "arguments": {}
+    },
+    {
+      "source": "saga.v1.commands",
+      "destination": "saga.v1.settlement",
+      "destination_type": "queue",
+      "routing_key": "ConfirmarLiquidacao",
+      "arguments": {}
+    },
+    {
+      "source": "saga.v1.errors",
+      "destination": "saga.v1.order.dlq",
+      "destination_type": "queue",
+      "routing_key": "order",
+      "arguments": {}
+    },
+    {
+      "source": "saga.v1.commands",
+      "destination": "saga.v1.order",
+      "destination_type": "queue",
+      "routing_key": "FinalizarOrdem",
+      "arguments": {}
+    },
+    {
+      "source": "saga.v1.errors",
+      "destination": "saga.v1.orchestrator.dlq",
+      "destination_type": "queue",
+      "routing_key": "orchestrator",
+      "arguments": {}
+    },
+    {
+      "source": "saga.v1.responses",
+      "destination": "saga.v1.orchestrator",
+      "destination_type": "queue",
+      "routing_key": "OrdemRecebida",
+      "arguments": {}
+    },
+    {
+      "source": "saga.v1.responses",
+      "destination": "saga.v1.orchestrator",
+      "destination_type": "queue",
+      "routing_key": "SaldoReservado",
+      "arguments": {}
+    },
+    {
+      "source": "saga.v1.responses",
+      "destination": "saga.v1.orchestrator",
+      "destination_type": "queue",
+      "routing_key": "SaldoRecusado",
+      "arguments": {}
+    },
+    {
+      "source": "saga.v1.responses",
+      "destination": "saga.v1.orchestrator",
+      "destination_type": "queue",
+      "routing_key": "AtivoReservado",
+      "arguments": {}
+    },
+    {
+      "source": "saga.v1.responses",
+      "destination": "saga.v1.orchestrator",
+      "destination_type": "queue",
+      "routing_key": "AtivoRecusado",
+      "arguments": {}
+    },
+    {
+      "source": "saga.v1.responses",
+      "destination": "saga.v1.orchestrator",
+      "destination_type": "queue",
+      "routing_key": "LiquidacaoConcluida",
+      "arguments": {}
+    },
+    {
+      "source": "saga.v1.responses",
+      "destination": "saga.v1.orchestrator",
+      "destination_type": "queue",
+      "routing_key": "LiquidacaoFalhou",
+      "arguments": {}
+    },
+    {
+      "source": "saga.v1.responses",
+      "destination": "saga.v1.orchestrator",
+      "destination_type": "queue",
+      "routing_key": "SaldoConfirmado",
+      "arguments": {}
+    },
+    {
+      "source": "saga.v1.responses",
+      "destination": "saga.v1.orchestrator",
+      "destination_type": "queue",
+      "routing_key": "AtivoConfirmado",
+      "arguments": {}
+    },
+    {
+      "source": "saga.v1.responses",
+      "destination": "saga.v1.orchestrator",
+      "destination_type": "queue",
+      "routing_key": "ReservaAtivoDesfeita",
+      "arguments": {}
+    },
+    {
+      "source": "saga.v1.responses",
+      "destination": "saga.v1.orchestrator",
+      "destination_type": "queue",
+      "routing_key": "ReservaSaldoDesfeita",
+      "arguments": {}
+    },
+    {
+      "source": "saga.v1.responses",
+      "destination": "saga.v1.orchestrator",
+      "destination_type": "queue",
+      "routing_key": "OrdemLiquidada",
+      "arguments": {}
+    },
+    {
+      "source": "saga.v1.responses",
+      "destination": "saga.v1.orchestrator",
+      "destination_type": "queue",
+      "routing_key": "OrdemRejeitada",
+      "arguments": {}
+    }
+  ]
+}
