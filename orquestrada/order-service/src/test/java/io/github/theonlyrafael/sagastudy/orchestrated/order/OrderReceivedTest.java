@@ -17,4 +17,15 @@ class OrderReceivedTest {
         assertThat(OrderReceivedPayload.from(order))
                 .isEqualTo(new OrderReceivedPayload("C", "A", 3, "0.10", "0.30", "v1"));
     }
+
+    @Test
+    void correlatesEventWithOriginalOrder() {
+        var event = OrderReceived.from(order);
+        assertThat(event.type()).isEqualTo("OrdemRecebida");
+        assertThat(event.schemaVersion()).isEqualTo(1);
+        assertThat(event.orderId()).isEqualTo(order.orderId());
+        assertThat(event.sagaId()).isEqualTo(order.sagaId());
+        assertThat(event.occurredAt()).isEqualTo(order.criadaEm().toString());
+        assertThat(event.operationId()).isNotNull().isNotEqualTo(event.messageId());
+    }
 }
