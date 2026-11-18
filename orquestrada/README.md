@@ -10,7 +10,7 @@
 
 Estão implementadas as reservas locais de saldo e ativos e a decisão durável de
 liquidação. Há API local de ordens com catálogo e idempotência HTTP. Ainda não há
-consumidores, Outbox/Inbox ou máquina de estados distribuída. As liberações locais existem; a coordenação das compensações ainda não.
+consumidores, Inbox ou máquina de estados distribuída. A Outbox de ordens registra OrdemRecebida no POST. As liberações locais existem; a coordenação das compensações ainda não.
 Pacotes: `io.github.theonlyrafael.sagastudy.orchestrated.<order|account|custody|settlement|orchestrator>`.
 O futuro contrato HTTP mantém `/api/ordens`, `clienteId`, `ativoId`, `quantidade`
 e os estados e tipos de mensagens do PDF; inglês interno não altera o contrato.

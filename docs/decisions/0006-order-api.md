@@ -20,9 +20,24 @@ sem acesso a conta/custódia, sem alegar que recursos estejam reservados.
 
 Catálogo inicial é opcional e ativado somente pelo perfil demo. A versão deve
 mudar ao publicar novos preços; não se alteram migrações aplicadas. Seeds de
-saldo/estoque serão feitos com os cenários de integração. Outbox/Inbox e eventos
-permanecem pendentes; antes de habilitar Saga, ordem e evento de início deverão
-ser gravados no mesmo commit.
+saldo/estoque serão feitos com os cenários de integração. Desde a migração V4, a criação de cada nova ordem grava a chave HTTP, a ordem e
+o envelope v1 de OrdemRecebida em uma transação de orders_db. O POST retorna
+202 após o commit. Uma falha de inserção na Outbox reverte também a ordem e a chave.
+O replay utiliza o registro original. A migração preserva ordens anteriores a V4
+sem gerar eventos retroativos, inclusive em reenvios HTTP.
+
+O futuro publicador deverá ler o envelope persistido, preservando messageId,
+operationId, sagaId, orderId, occurredAt e o snapshot do catálogo. published_at
+nulo indica publicação pendente. O índice parcial cobre as pendências por data
+e identificador. Para inspecionar as últimas dez no banco de ordens:
+
+```sql
+SELECT order_id, message_id, envelope, published_at
+FROM outbox_messages
+WHERE published_at IS NULL
+ORDER BY created_at DESC, message_id DESC
+LIMIT 10;
+```
 
 O seed demo é uma migração repetível, sem sobrescrever ativos existentes. Isso
 não bloqueia futuras migrações numeradas. Mantenha o perfil demo nos bancos
