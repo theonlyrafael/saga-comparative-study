@@ -273,6 +273,16 @@ class OrderApiIntegrationTest {
         assertThat(count("outbox_messages")).isEqualTo(1);
     }
 
+    @Test
+    void replayOfPreOutboxOrderDoesNotStartAHistoricalSaga() throws Exception {
+        var original = post("legacy", body);
+        // Reproduce the state immediately after migrating an existing order from schema V3.
+        jdbc.update("DELETE FROM outbox_messages");
+        assertThat(post("legacy", body).body()).isEqualTo(original.body());
+        assertThat(count("orders")).isEqualTo(1);
+        assertThat(count("outbox_messages")).isZero();
+    }
+
     long count(String table) {
         return jdbc.queryForObject("SELECT count(*) FROM " + table, Long.class);
     }
