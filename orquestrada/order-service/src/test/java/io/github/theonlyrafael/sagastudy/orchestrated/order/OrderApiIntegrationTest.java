@@ -229,6 +229,30 @@ class OrderApiIntegrationTest {
         assertThat(post("k", body).statusCode()).isEqualTo(202);
     }
 
+    @Test
+    void storesOnePendingEnvelopeMatchingTheHttpSnapshot() throws Exception {
+        var response = post("k", body);
+        assertThat(response.statusCode()).isEqualTo(202);
+        var order = json.readTree(response.body());
+        var row = jdbc.queryForMap("SELECT message_id, order_id, message_type, envelope::text AS body, published_at FROM outbox_messages");
+        var event = json.readTree((String) row.get("body"));
+        assertThat(event.size()).isEqualTo(8);
+        assertThat(event.get("type").asText()).isEqualTo("OrdemRecebida").isEqualTo(row.get("message_type"));
+        assertThat(event.get("schemaVersion").asInt()).isEqualTo(1);
+        assertThat(event.get("messageId").asText()).isEqualTo(row.get("message_id").toString());
+        UUID.fromString(event.get("operationId").asText());
+        assertThat(event.get("orderId")).isEqualTo(order.get("orderId"));
+        assertThat(event.get("orderId").asText()).isEqualTo(row.get("order_id").toString());
+        assertThat(event.get("sagaId")).isEqualTo(order.get("sagaId"));
+        assertThat(java.time.Instant.parse(event.get("occurredAt").asText()))
+                .isEqualTo(java.time.Instant.parse(order.get("criadaEm").asText()));
+        assertThat(event.get("payload")).isEqualTo(json.readTree("""
+                {"clienteId":"C","ativoId":"A","quantidade":3,"precoUnitario":"10.00",
+                 "valorTotal":"30.00","versaoCatalogo":"v1"}
+                """));
+        assertThat(row.get("published_at")).isNull();
+    }
+
     long count(String table) {
         return jdbc.queryForObject("SELECT count(*) FROM " + table, Long.class);
     }
