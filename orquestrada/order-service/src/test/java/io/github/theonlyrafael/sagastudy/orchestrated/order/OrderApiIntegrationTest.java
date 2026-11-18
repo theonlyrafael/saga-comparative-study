@@ -56,6 +56,7 @@ class OrderApiIntegrationTest {
     @BeforeEach
     void setup() {
         jdbc.update("DELETE FROM http_idempotency");
+        jdbc.update("DELETE FROM outbox_messages");
         jdbc.update("DELETE FROM orders");
         jdbc.update("DELETE FROM asset_catalog");
         jdbc.update("INSERT INTO asset_catalog VALUES ('A','v1',10.00), ('B','v1',25.50)");
