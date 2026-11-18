@@ -95,9 +95,11 @@ class OrderApiIntegrationTest {
     void replayPreservesPriceEvenAfterCatalogRemoval() throws Exception {
         var first = post("k", body);
         jdbc.update("DELETE FROM asset_catalog");
+        String original = jdbc.queryForObject("SELECT envelope::text FROM outbox_messages", String.class);
         var second = post("k", body);
         assertThat(second.statusCode()).isEqualTo(202);
         assertThat(second.body()).isEqualTo(first.body());
+        assertThat(jdbc.queryForObject("SELECT envelope::text FROM outbox_messages", String.class)).isEqualTo(original);
     }
 
     @Test
@@ -119,6 +121,7 @@ class OrderApiIntegrationTest {
         assertThat(post("k", body.replace("\"A\"", "\"B\"")).statusCode()).isEqualTo(409);
         assertThat(post("k", body).body()).isEqualTo(first.body());
         assertThat(count("orders")).isEqualTo(1);
+        assertThat(count("outbox_messages")).isEqualTo(1);
     }
 
     @Test
@@ -179,6 +182,7 @@ class OrderApiIntegrationTest {
         assertThat(results.stream().map(HttpResponse::body).distinct().count()).isEqualTo(1);
         assertThat(count("orders")).isEqualTo(1);
         assertThat(count("http_idempotency")).isEqualTo(1);
+        assertThat(count("outbox_messages")).isEqualTo(1);
     }
 
     @Test
@@ -187,6 +191,7 @@ class OrderApiIntegrationTest {
         assertThat(results.stream().filter(r -> r.statusCode() == 202).count()).isEqualTo(1);
         assertThat(results.stream().filter(r -> r.statusCode() == 409).count()).isEqualTo(5);
         assertThat(count("orders")).isEqualTo(1);
+        assertThat(count("outbox_messages")).isEqualTo(1);
     }
 
     List<HttpResponse<String>> concurrent(boolean divergent) throws Exception {
