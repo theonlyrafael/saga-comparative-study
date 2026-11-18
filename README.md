@@ -149,7 +149,7 @@ não aprovação de PR nem funcionamento completo da Saga distribuída.
 - [x] Implementar [reservas locais de ativos](docs/decisions/0004-asset-reservations.md): reservar, liberar e transferir ao comprador uma única vez, preservando a posição de origem.
 - [x] Implementar [liquidação local durável](docs/decisions/0005-local-settlement.md): validar reservas compatíveis, registrar uma decisão única e permitir replay e consultas por operação, ordem e Saga.
 - [x] Corrigir o conflito de replay com conta inexistente e proteger as operações SQL de saldo contra valores não positivos e ausência de transação.
-- [x] Validar a API e as três capacidades locais com **210 testes aprovados**, sem falhas, erros ou ignorados: 30 de ordens, 53 de saldo, 81 de custódia e 46 de liquidação.
+- [x] Validar a API e as três capacidades locais com **215 testes aprovados**, sem falhas, erros ou ignorados: 35 de ordens, 53 de saldo, 81 de custódia e 46 de liquidação.
 - [x] Verificar a inicialização das cinco aplicações, saúde/readiness UP e isolamento dos bancos (cinco acessos próprios e vinte recusas cruzadas).
 
 - [x] Implementar catálogo fixo/versionado e captura do preço no registro da ordem.

@@ -30,8 +30,8 @@ para mascarar diferenças de esquema.
 
 ## Validar as capacidades locais
 
-Com JDK 17 e Docker disponíveis, `./mvnw clean verify` executa 210 testes
-(30 ordens, 53 conta, 81 custódia e 46 liquidação) e constrói os cinco JARs.
+Com JDK 17 e Docker disponíveis, `./mvnw clean verify` executa 215 testes
+(35 ordens, 53 conta, 81 custódia e 46 liquidação) e constrói os cinco JARs.
 Para focar na liquidação: `./mvnw -pl settlement-service -am test`.
 Pare as JVMs antes de reempacotar os JARs utilizados por elas.
 
