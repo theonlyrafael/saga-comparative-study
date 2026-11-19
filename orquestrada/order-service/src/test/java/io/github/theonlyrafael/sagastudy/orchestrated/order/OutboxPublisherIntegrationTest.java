@@ -65,6 +65,25 @@ class OutboxPublisherIntegrationTest {
         admin.deleteQueue(queue.getName());
     }
 
+    @Test void resumesAfterBrokerOutage() throws Exception {
+        var admin = new RabbitAdmin(rabbit);
+        var exchange = new DirectExchange("saga.v1.responses");
+        admin.declareExchange(exchange);
+        var queue = new Queue("outage-test-" + UUID.randomUUID());
+        admin.declareQueue(queue);
+        admin.declareBinding(BindingBuilder.bind(queue).to(exchange).with("OrdemRecebida"));
+        assertThat(BROKER.execInContainer("rabbitmqctl", "stop_app").getExitCode()).isZero();
+        UUID order;
+        try {
+            order = createOrder();
+            awaitDeferred(order);
+        } finally {
+            assertThat(BROKER.execInContainer("rabbitmqctl", "start_app").getExitCode()).isZero();
+        }
+        verifyDelivered(order, queue.getName());
+        admin.deleteQueue(queue.getName());
+    }
+
     private UUID createOrder() {
         jdbc.update("INSERT INTO asset_catalog VALUES ('A','v1',10) ON CONFLICT DO NOTHING");
         return orders.create(new CreateOrderCommand("C", "A", 2, UUID.randomUUID().toString())).orderId();
