@@ -2,7 +2,13 @@ package io.github.theonlyrafael.sagastudy.orchestrated.order;
 
 import io.github.theonlyrafael.sagastudy.orchestrated.order.application.CreateOrderCommand;
 import io.github.theonlyrafael.sagastudy.orchestrated.order.application.OrderService;
+import java.net.URI;
+import java.net.http.HttpClient;
+import java.net.http.HttpRequest;
+import java.net.http.HttpResponse;
 import java.nio.charset.StandardCharsets;
+import org.springframework.boot.test.web.server.LocalServerPort;
+import tools.jackson.databind.ObjectMapper;
 import java.time.Duration;
 import java.util.UUID;
 import org.junit.jupiter.api.Test;
@@ -25,7 +31,7 @@ import static org.assertj.core.api.Assertions.assertThat;
 import static org.awaitility.Awaitility.await;
 
 @Testcontainers
-@SpringBootTest(webEnvironment = SpringBootTest.WebEnvironment.NONE, properties = {
+@SpringBootTest(webEnvironment = SpringBootTest.WebEnvironment.RANDOM_PORT, properties = {
         "outbox.poll-interval=100ms", "outbox.retry-delay-ms=200", "spring.rabbitmq.connection-timeout=1s"
 })
 class OutboxPublisherIntegrationTest {
@@ -51,6 +57,43 @@ class OutboxPublisherIntegrationTest {
     @Autowired OrderService orders;
     @Autowired JdbcTemplate jdbc;
     @Autowired RabbitTemplate rabbit;
+
+    @LocalServerPort int port;
+    @Autowired ObjectMapper json;
+
+    @Test void replayOverHttpPreservesPublishedEvent() throws Exception {
+        var admin = new RabbitAdmin(rabbit);
+        var exchange = new DirectExchange("saga.v1.responses");
+        var queue = new Queue("http-test-" + UUID.randomUUID());
+        admin.declareExchange(exchange);
+        admin.declareQueue(queue);
+        admin.declareBinding(BindingBuilder.bind(queue).to(exchange).with("OrdemRecebida"));
+        try {
+            jdbc.update("INSERT INTO asset_catalog VALUES ('A','v1',10) ON CONFLICT DO NOTHING");
+            var request = HttpRequest.newBuilder(URI.create("http://127.0.0.1:" + port + "/api/ordens"))
+                    .timeout(Duration.ofSeconds(15))
+                    .header("Content-Type", "application/json")
+                    .header("Idempotency-Key", UUID.randomUUID().toString())
+                    .POST(HttpRequest.BodyPublishers.ofString("""
+                            {"clienteId":"C","ativoId":"A","quantidade":2}
+                            """)).build();
+            var client = HttpClient.newHttpClient();
+            var created = client.send(request, HttpResponse.BodyHandlers.ofString());
+            assertThat(created.statusCode()).isEqualTo(202);
+            var order = UUID.fromString(json.readTree(created.body()).get("orderId").asText());
+            verifyDelivered(order, queue.getName());
+
+            var replay = client.send(request, HttpResponse.BodyHandlers.ofString());
+            assertThat(replay.statusCode()).isEqualTo(202);
+            assertThat(replay.body()).isEqualTo(created.body());
+            assertThat(jdbc.queryForObject("""
+                    SELECT count(*) FROM outbox_messages WHERE order_id = ? AND published_at IS NOT NULL
+                    """, Integer.class, order)).isEqualTo(1);
+            assertThat(rabbit.receive(queue.getName(), 500)).isNull();
+        } finally {
+            admin.deleteQueue(queue.getName());
+        }
+    }
 
     @Test void returnedMessageRemainsPendingUntilRouteExists() {
         var admin = new RabbitAdmin(rabbit);
