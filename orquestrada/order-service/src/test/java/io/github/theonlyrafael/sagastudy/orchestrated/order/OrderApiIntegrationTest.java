@@ -26,6 +26,7 @@ import java.util.concurrent.*;
 @SpringBootTest(
         webEnvironment = SpringBootTest.WebEnvironment.RANDOM_PORT,
         properties = {
+            "outbox.publisher.enabled=false",
             "spring.rabbitmq.username=unused",
             "spring.rabbitmq.password=unused",
             "spring.rabbitmq.dynamic=false",
@@ -56,6 +57,7 @@ class OrderApiIntegrationTest {
     @BeforeEach
     void setup() {
         jdbc.update("DELETE FROM http_idempotency");
+        jdbc.update("DELETE FROM outbox_messages");
         jdbc.update("DELETE FROM orders");
         jdbc.update("DELETE FROM asset_catalog");
         jdbc.update("INSERT INTO asset_catalog VALUES ('A','v1',10.00), ('B','v1',25.50)");
@@ -94,9 +96,11 @@ class OrderApiIntegrationTest {
     void replayPreservesPriceEvenAfterCatalogRemoval() throws Exception {
         var first = post("k", body);
         jdbc.update("DELETE FROM asset_catalog");
+        String original = jdbc.queryForObject("SELECT envelope::text FROM outbox_messages", String.class);
         var second = post("k", body);
         assertThat(second.statusCode()).isEqualTo(202);
         assertThat(second.body()).isEqualTo(first.body());
+        assertThat(jdbc.queryForObject("SELECT envelope::text FROM outbox_messages", String.class)).isEqualTo(original);
     }
 
     @Test
@@ -118,6 +122,7 @@ class OrderApiIntegrationTest {
         assertThat(post("k", body.replace("\"A\"", "\"B\"")).statusCode()).isEqualTo(409);
         assertThat(post("k", body).body()).isEqualTo(first.body());
         assertThat(count("orders")).isEqualTo(1);
+        assertThat(count("outbox_messages")).isEqualTo(1);
     }
 
     @Test
@@ -178,6 +183,7 @@ class OrderApiIntegrationTest {
         assertThat(results.stream().map(HttpResponse::body).distinct().count()).isEqualTo(1);
         assertThat(count("orders")).isEqualTo(1);
         assertThat(count("http_idempotency")).isEqualTo(1);
+        assertThat(count("outbox_messages")).isEqualTo(1);
     }
 
     @Test
@@ -186,6 +192,7 @@ class OrderApiIntegrationTest {
         assertThat(results.stream().filter(r -> r.statusCode() == 202).count()).isEqualTo(1);
         assertThat(results.stream().filter(r -> r.statusCode() == 409).count()).isEqualTo(5);
         assertThat(count("orders")).isEqualTo(1);
+        assertThat(count("outbox_messages")).isEqualTo(1);
     }
 
     List<HttpResponse<String>> concurrent(boolean divergent) throws Exception {
@@ -226,6 +233,55 @@ class OrderApiIntegrationTest {
             jdbc.execute("ALTER TABLE orders DROP CONSTRAINT test_storage_failure");
         }
         assertThat(post("k", body).statusCode()).isEqualTo(202);
+    }
+
+    @Test
+    void storesOnePendingEnvelopeMatchingTheHttpSnapshot() throws Exception {
+        var response = post("k", body);
+        assertThat(response.statusCode()).isEqualTo(202);
+        var order = json.readTree(response.body());
+        var row = jdbc.queryForMap("SELECT message_id, order_id, message_type, envelope::text AS body, published_at FROM outbox_messages");
+        var event = json.readTree((String) row.get("body"));
+        assertThat(event.size()).isEqualTo(8);
+        assertThat(event.get("type").asText()).isEqualTo("OrdemRecebida").isEqualTo(row.get("message_type"));
+        assertThat(event.get("schemaVersion").asInt()).isEqualTo(1);
+        assertThat(event.get("messageId").asText()).isEqualTo(row.get("message_id").toString());
+        UUID.fromString(event.get("operationId").asText());
+        assertThat(event.get("orderId")).isEqualTo(order.get("orderId"));
+        assertThat(event.get("orderId").asText()).isEqualTo(row.get("order_id").toString());
+        assertThat(event.get("sagaId")).isEqualTo(order.get("sagaId"));
+        assertThat(java.time.Instant.parse(event.get("occurredAt").asText()))
+                .isEqualTo(java.time.Instant.parse(order.get("criadaEm").asText()));
+        assertThat(event.get("payload")).isEqualTo(json.readTree("""
+                {"clienteId":"C","ativoId":"A","quantidade":3,"precoUnitario":"10.00",
+                 "valorTotal":"30.00","versaoCatalogo":"v1"}
+                """));
+        assertThat(row.get("published_at")).isNull();
+    }
+
+    @Test
+    void eventWriteFailureRollsBackOrderAndKey() throws Exception {
+        jdbc.execute("ALTER TABLE outbox_messages ADD CONSTRAINT simulated_failure CHECK (false)");
+        try {
+            assertThat(post("k", body).statusCode()).isEqualTo(500);
+            assertThat(count("orders")).isZero();
+            assertThat(count("http_idempotency")).isZero();
+            assertThat(count("outbox_messages")).isZero();
+        } finally {
+            jdbc.execute("ALTER TABLE outbox_messages DROP CONSTRAINT simulated_failure");
+        }
+        assertThat(post("k", body).statusCode()).isEqualTo(202);
+        assertThat(count("outbox_messages")).isEqualTo(1);
+    }
+
+    @Test
+    void replayOfPreOutboxOrderDoesNotStartAHistoricalSaga() throws Exception {
+        var original = post("legacy", body);
+        // Reproduce the state immediately after migrating an existing order from schema V3.
+        jdbc.update("DELETE FROM outbox_messages");
+        assertThat(post("legacy", body).body()).isEqualTo(original.body());
+        assertThat(count("orders")).isEqualTo(1);
+        assertThat(count("outbox_messages")).isZero();
     }
 
     long count(String table) {

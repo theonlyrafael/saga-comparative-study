@@ -1,6 +1,31 @@
 # Progresso — Saga orquestrada
 
-## Estado atual — API local de ordens (16/11/2026)
+## Mensageria de ordens — 19/11/2026
+
+Na branch `feat/orchestrated-messaging`, as seis etapas de mensageria de ordens
+estão concluídas. O POST grava o envelope v1 na Outbox junto com a ordem. O
+publicador entrega o envelope ao RabbitMQ e registra a confirmação no PostgreSQL.
+A ordem permanece RECEBIDA até a implementação dos consumidores e do coordenador.
+
+Validação da etapa 6 com JDK 17, PostgreSQL 17.11 e RabbitMQ 4.4.0:
+
+- `clean verify` em `orquestrada/` construiu os cinco JARs e executou 220 testes
+  Java (40 ordens, 53 saldo, 81 custódia, 46 liquidação), com zero falhas, erros ou ignorados.
+- O teste integrado `replayOverHttpPreservesPublishedEvent` exercitou o POST
+  real em porta aleatória, o envelope persistido e a entrega AMQP persistente
+  em fila de teste. Repetir a mesma chave retornou a mesma resposta 202, com um
+  único registro publicado e sem segunda mensagem observada na fila.
+- A suíte exercitou também rota ausente e indisponibilidade real do broker.
+  A recuperação reenvia o envelope original. Uma falha entre o ACK e o commit
+  ainda pode duplicar a entrega. A Inbox será responsável por deduplicar efeitos.
+- Separadamente passaram os cinco testes Python de contrato e o teste de roteamento
+  dos 21 tipos num vhost temporário, incluindo rejeição para DLQ.
+
+Para reproduzir, siga o [guia de execução](execucao-local.md), os [testes de
+contrato](../compartilhado/README.md) e o [teste de rotas](../infra/README.md).
+A próxima entrega é a Inbox com consumidores idempotentes.
+
+## Entrega anterior — API local de ordens (16/11/2026)
 
 Branch `feat/orchestrated-order-api`, baseada na dev `368f20c` após o merge da
 liquidação. Implementa POST/GET, catálogo local versionado, captura de preço e
