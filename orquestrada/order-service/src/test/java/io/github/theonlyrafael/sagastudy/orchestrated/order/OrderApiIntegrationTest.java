@@ -26,6 +26,7 @@ import java.util.concurrent.*;
 @SpringBootTest(
         webEnvironment = SpringBootTest.WebEnvironment.RANDOM_PORT,
         properties = {
+            "outbox.publisher.enabled=false",
             "spring.rabbitmq.username=unused",
             "spring.rabbitmq.password=unused",
             "spring.rabbitmq.dynamic=false",
