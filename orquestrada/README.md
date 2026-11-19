@@ -10,28 +10,27 @@
 
 Estão implementadas as reservas locais de saldo e ativos e a decisão durável de
 liquidação. Há API local de ordens com catálogo e idempotência HTTP. Ainda não há
-consumidores, Outbox/Inbox ou máquina de estados distribuída. As liberações locais existem; a coordenação das compensações ainda não.
+consumidores, Inbox ou máquina de estados distribuída. A Outbox de ordens registra OrdemRecebida no POST. As liberações locais existem; a coordenação das compensações ainda não.
 Pacotes: `io.github.theonlyrafael.sagastudy.orchestrated.<order|account|custody|settlement|orchestrator>`.
-O futuro contrato HTTP mantém `/api/ordens`, `clienteId`, `ativoId`, `quantidade`
+O contrato HTTP mantém `/api/ordens`, `clienteId`, `ativoId`, `quantidade`
 e os estados e tipos de mensagens do PDF; inglês interno não altera o contrato.
 
 ## Construção e execução
 
 Execute `./mvnw clean verify` neste diretório com JDK 17. O parent gerencia as
 versões; cada módulo gera um JAR executável em `target/`. Consulte o
-[README principal](../README.md) para infraestrutura e execução das cinco JVMs.
+[guia de execução local](../docs/execucao-local.md) para infraestrutura e execução das cinco JVMs.
 
 Flyway usa `src/main/resources/db/migration/` de cada serviço. Conta, custódia e
 liquidação possuem migrações de negócio e testes com PostgreSQL via Testcontainers.
-Ordens tem migrações de catálogo, ordens e idempotência. Apenas o orquestrador
+Ordens possui migrações de catálogo, ordens, idempotência e Outbox. Apenas o orquestrador
 ainda não tem migrações de negócio.
 Não usar migrações vazias, `ddl-auto=create/update`, H2 ou `baseline-on-migrate`
 para mascarar diferenças de esquema.
 
 ## Validar as capacidades locais
 
-Com JDK 17 e Docker disponíveis, `./mvnw clean verify` executa 210 testes
-(30 ordens, 53 conta, 81 custódia e 46 liquidação) e constrói os cinco JARs.
+Com JDK 17 e Docker disponíveis, `./mvnw clean verify` executa as suítes de ordens, conta, custódia e liquidação e constrói os cinco JARs.
 Para focar na liquidação: `./mvnw -pl settlement-service -am test`.
 Pare as JVMs antes de reempacotar os JARs utilizados por elas.
 
@@ -43,4 +42,4 @@ O [contrato detalhado](../docs/decisions/0005-local-settlement.md) explica a
 fronteira de confiança e por que ausência/timeout isolado não autoriza compensação.
 
 Para testar apenas ordens: `./mvnw -pl order-service -am test`. A API e o perfil
-opcional demo estão descritos no README principal e na decisão 0006.
+opcional demo estão descritos no [guia de execução local](../docs/execucao-local.md) e na [decisão 0006](../docs/decisions/0006-order-api.md).
