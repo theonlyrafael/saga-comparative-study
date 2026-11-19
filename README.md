@@ -168,14 +168,15 @@ detalha idempotência, erros e limites desta entrega.
 
 - [x] Gravar um único evento v1 `OrdemRecebida` na Outbox de cada nova ordem, na mesma transação da chave HTTP e da ordem. [Decisão e consulta SQL](docs/decisions/0006-order-api.md)
 
+- [x] Publicar envelopes persistentes da Outbox e reagendar pendências até receber ACK do RabbitMQ com roteamento confirmado.
+
 ### Próximas etapas
 
 Sequência prevista a partir da especificação; manter cada item desmarcado até sua
 implementação e validação. API de ordens, catálogo e idempotência HTTP estão implementados. A próxima
-entrega é publicar os envelopes pendentes da Outbox com confirmação do RabbitMQ.
+etapa é consolidar a validação integrada e a documentação da mensageria (etapa 6).
 
 - [ ] Versionar seeds de catálogo, saldo inicial e estoque configuráveis por cenário.
-- [ ] Implementar o publicador da Outbox com mensagens persistentes, publisher confirms e reenvio das pendências.
 - [ ] Implementar consumidores idempotentes/Inbox, resultados duráveis das operações, ACK após commit, retries e DLQ para erros de contrato.
 - [ ] Implementar o motor persistente da Saga, com estados técnicos, etapas, prazos e consulta restrita de diagnóstico.
 - [ ] Integrar o caminho feliz: reservar saldo → reservar ativo → registrar liquidação → efetivar saldo/ativo → finalizar a ordem como LIQUIDADA.
