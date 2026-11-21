@@ -117,6 +117,44 @@ class AssetReservationServiceIntegrationTest {
         return (ObjectNode) json.readTree(envelope);
     }
 
+    @ParameterizedTest
+    @ValueSource(booleans = {true, false})
+    void correlatesTerminalCommandAndAppliesItOnce(boolean confirm) {
+        var reserve = message();
+        deliver(reserve);
+        var reservation = reply(reserve).get("payload").get("reservaAtivoId").asString();
+        var terminal = reserve.deepCopy();
+        terminal.put("messageId", UUID.randomUUID().toString());
+        terminal.put("operationId", UUID.randomUUID().toString());
+        terminal.put("type", (confirm ? "Confirmar" : "Desfazer") + "ReservaAtivo");
+        var payload = (ObjectNode) terminal.get("payload");
+        payload.remove("reservaSaldoId");
+        payload.put("reservaAtivoId", reservation);
+        if (confirm) payload.put("liquidacaoId", UUID.randomUUID().toString());
+        var wrongOrder = terminal.deepCopy();
+        wrongOrder.put("orderId", UUID.randomUUID().toString());
+        assertThatThrownBy(() -> deliver(wrongOrder)).isInstanceOf(AmqpRejectAndDontRequeueException.class);
+        deliver(terminal);
+        deliver(terminal);
+        assertThat(reply(terminal).get("type").asString())
+                .isEqualTo(confirm ? "AtivoConfirmado" : "ReservaAtivoDesfeita");
+        assertPosition("SELLER", "ASSET", confirm ? 8 : 10, 0);
+        if (confirm) assertPosition("CLI001", "ASSET", 2, 0);
+    }
+
+    @Test
+    void replaysRefusalEvenAfterResourceBecomesAvailable() {
+        var command = message();
+        jdbc.update("UPDATE positions SET available_quantity=0");
+        deliver(command);
+        var refused = reply(command);
+        assertThat(refused.get("payload").get("motivo").asString()).isEqualTo("ATIVO_INSUFICIENTE");
+        jdbc.update("UPDATE positions SET available_quantity=10");
+        deliver(command);
+        assertThat(reply(command)).isEqualTo(refused);
+        assertThat(reservationCount()).isZero();
+    }
+
     @Test
     void replayPreservesResponseAndAppliesOneDomainChange() {
         var command = message();
