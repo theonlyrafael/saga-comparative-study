@@ -28,7 +28,9 @@ import static org.assertj.core.api.Assertions.*;
 @Testcontainers
 @SpringBootTest(webEnvironment = SpringBootTest.WebEnvironment.NONE, properties = {
         "spring.rabbitmq.username=unused", "spring.rabbitmq.password=unused",
-        "spring.rabbitmq.dynamic=false", "management.health.rabbit.enabled=false",
+        "spring.rabbitmq.dynamic=false",
+                "spring.rabbitmq.listener.simple.auto-startup=false",
+                "outbox.publisher.enabled=false", "management.health.rabbit.enabled=false",
         "management.endpoint.health.group.readiness.include=db"
 })
 class SettlementServiceIntegrationTest {
