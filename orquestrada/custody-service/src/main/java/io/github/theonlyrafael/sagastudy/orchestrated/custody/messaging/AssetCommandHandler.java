@@ -30,7 +30,7 @@ public class AssetCommandHandler implements ParticipantHandler {
                 case "DesfazerReservaAtivo" -> transition(command, false);
                 default -> throw new AmqpRejectAndDontRequeueException("Unexpected reservation command");
             };
-        } catch (AssetReservationException conflict) {
+        } catch (AssetReservationException | IllegalArgumentException conflict) {
             throw new AmqpRejectAndDontRequeueException("Incompatible reservation command", conflict);
         }
     }
