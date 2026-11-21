@@ -167,6 +167,19 @@ class BalanceReservationServiceIntegrationTest {
     }
 
     @Test
+    void divergentRetryPreservesTheOriginalSnapshotAndResponse() {
+        var command = message();
+        deliver(command);
+        var first = reply(command);
+        var divergent = command.deepCopy().put("messageId", UUID.randomUUID().toString());
+        ((ObjectNode) divergent.get("payload")).put("versaoCatalogo", "v2");
+        assertThatThrownBy(() -> deliver(divergent)).isInstanceOf(AmqpRejectAndDontRequeueException.class);
+        assertThat(reply(command)).isEqualTo(first);
+        assertThat(reservationCount()).isOne();
+        assertBalances("80.00", "20.00", "0.00");
+    }
+
+    @Test
     void inconsistentOrAmbiguousEnvelopeDoesNotClaimAnOperation() {
         var valid = message();
         var inconsistent = valid.deepCopy();
@@ -174,7 +187,7 @@ class BalanceReservationServiceIntegrationTest {
         assertThatThrownBy(() -> deliver(inconsistent)).isInstanceOf(AmqpRejectAndDontRequeueException.class);
         var properties = new MessageProperties();
         properties.setReceivedRoutingKey("ReservarSaldo");
-        var duplicateKey = valid.toString().replace("{", "{\"schemaVersion\":1,");
+        var duplicateKey = "{\"schemaVersion\":1," + valid.toString().substring(1);
         for (String invalid : List.of(duplicateKey, valid + " {}")) {
             assertThatThrownBy(() -> consumer.receive(new Message(invalid.getBytes(java.nio.charset.StandardCharsets.UTF_8),
                     properties))).isInstanceOf(AmqpRejectAndDontRequeueException.class);
