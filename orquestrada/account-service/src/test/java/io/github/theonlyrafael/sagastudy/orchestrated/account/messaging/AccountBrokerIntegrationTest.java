@@ -17,6 +17,8 @@ import org.springframework.boot.test.context.SpringBootTest;
 import org.springframework.jdbc.core.JdbcTemplate;
 import org.springframework.test.context.DynamicPropertyRegistry;
 import org.springframework.test.context.DynamicPropertySource;
+import tools.jackson.databind.ObjectMapper;
+import tools.jackson.databind.node.ObjectNode;
 import org.testcontainers.containers.GenericContainer;
 import org.testcontainers.containers.wait.strategy.Wait;
 import org.testcontainers.junit.jupiter.Container;
@@ -55,6 +57,7 @@ class AccountBrokerIntegrationTest {
     private static final String COMMAND = "ReservarSaldo";
     @Autowired ParticipantConsumer consumer;
     @Autowired JdbcTemplate jdbc;
+    @Autowired ObjectMapper json;
     @Autowired RabbitTemplate rabbit;
     @Autowired RabbitListenerEndpointRegistry listeners;
 
@@ -93,7 +96,10 @@ class AccountBrokerIntegrationTest {
 
     @Test
     void closingChannelAfterDatabaseCommitRedeliversTheStoredReply() throws Exception {
-        rabbit.send("saga.v1.commands", COMMAND, fundedCommand());
+        var command = fundedCommand();
+        rabbit.send("saga.v1.commands", COMMAND, command);
+        await().atMost(Duration.ofSeconds(5)).until(() ->
+                new RabbitAdmin(rabbit).getQueueInfo(QUEUE).getMessageCount() == 1);
         var factory = new ConnectionFactory();
         factory.setHost(BROKER.getHost());
         factory.setPort(BROKER.getMappedPort(5672));
@@ -115,10 +121,47 @@ class AccountBrokerIntegrationTest {
         assertThat(replay).isNotNull();
         assertThat(replay.getBody()).isEqualTo(first.getBody());
         assertThat(replay.getMessageProperties().getMessageId()).isEqualTo(first.getMessageProperties().getMessageId());
-        assertThat(jdbc.queryForObject("SELECT count(*) FROM accounts WHERE reserved_balance=20",
-                Integer.class)).isPositive();
+        assertReservedOnce(command);
         assertThat(jdbc.queryForObject("SELECT count(*) FROM outbox_messages WHERE message_id=?",
                 Integer.class, UUID.fromString(first.getMessageProperties().getMessageId()))).isOne();
+    }
+
+    @Test
+    void failedCommitIsRedeliveredByBroker() {
+        // Sequence advancement survives rollback and makes only the first commit fail.
+        jdbc.execute("CREATE SEQUENCE commit_attempt");
+        jdbc.execute("""
+                CREATE FUNCTION fail_first_commit() RETURNS trigger LANGUAGE plpgsql AS $$
+                BEGIN
+                    IF nextval('commit_attempt') = 1 THEN RAISE EXCEPTION 'injected failure'; END IF;
+                    RETURN NEW;
+                END $$
+                """);
+        jdbc.execute("""
+                CREATE CONSTRAINT TRIGGER fail_once AFTER INSERT ON outbox_messages
+                DEFERRABLE INITIALLY DEFERRED FOR EACH ROW EXECUTE FUNCTION fail_first_commit()
+                """);
+        try {
+            listeners.start();
+            var command = fundedCommand();
+            rabbit.send("saga.v1.commands", COMMAND, command);
+            var result = rabbit.receive("replies", 15000);
+            assertThat(result).isNotNull();
+            assertThat(jdbc.queryForObject("SELECT last_value FROM commit_attempt", Long.class)).isEqualTo(2);
+            assertReservedOnce(command);
+        } finally {
+            jdbc.execute("DROP TRIGGER fail_once ON outbox_messages");
+            jdbc.execute("DROP FUNCTION fail_first_commit()");
+            jdbc.execute("DROP SEQUENCE commit_attempt");
+        }
+    }
+
+    private void assertReservedOnce(Message command) {
+        var body = json.readTree(command.getBody());
+        assertThat(jdbc.queryForObject("SELECT reserved_balance FROM accounts WHERE account_id=?",
+                java.math.BigDecimal.class, body.get("payload").get("clienteId").asString())).isEqualByComparingTo("20");
+        assertThat(jdbc.queryForObject("SELECT count(*) FROM balance_reservations WHERE order_id=?",
+                Integer.class, UUID.fromString(body.get("orderId").asString()))).isOne();
     }
 
     @Test
