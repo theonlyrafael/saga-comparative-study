@@ -22,9 +22,15 @@ Estudo comparativo de Sagas para a compra simulada de um ativo. O desenvolviment
 - [x] 5. Reenviar pendências após indisponibilidade do broker ou ausência de rota.
 - [x] 6. Validar o fluxo do POST até a fila, o reenvio HTTP e a recuperação. Registrar as evidências.
 
-**Próximas entregas**
+**Inbox dos participantes**
 
-- [ ] Implementar Inbox e consumidores idempotentes, com resultado durável e ACK após o commit.
+- [x] Criar índices únicos por consumidor, mensagem e operação em cada banco.
+- [ ] Consumir comandos de saldo.
+- [ ] Consumir comandos de custódia.
+- [ ] Consumir comandos de liquidação.
+- [ ] Validar concorrência, rollback e reentrega após commit.
+
+**Próximas entregas**
 - [ ] Versionar os dados de catálogo, saldo e estoque por cenário.
 - [ ] Persistir o estado do orquestrador e integrar o fluxo da ordem até `LIQUIDADA`.
 - [ ] Compensar reservas antes da liquidação e retomar efetivações pendentes após reinício.
