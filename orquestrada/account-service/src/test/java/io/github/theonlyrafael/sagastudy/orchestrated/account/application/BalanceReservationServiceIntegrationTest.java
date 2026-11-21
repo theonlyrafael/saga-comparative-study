@@ -167,6 +167,26 @@ class BalanceReservationServiceIntegrationTest {
     }
 
     @Test
+    void inconsistentOrAmbiguousEnvelopeDoesNotClaimAnOperation() {
+        var valid = message();
+        var inconsistent = valid.deepCopy();
+        ((ObjectNode) inconsistent.get("payload")).put("valorTotal", "999.99");
+        assertThatThrownBy(() -> deliver(inconsistent)).isInstanceOf(AmqpRejectAndDontRequeueException.class);
+        var properties = new MessageProperties();
+        properties.setReceivedRoutingKey("ReservarSaldo");
+        var duplicateKey = valid.toString().replace("{", "{\"schemaVersion\":1,");
+        for (String invalid : List.of(duplicateKey, valid + " {}")) {
+            assertThatThrownBy(() -> consumer.receive(new Message(invalid.getBytes(java.nio.charset.StandardCharsets.UTF_8),
+                    properties))).isInstanceOf(AmqpRejectAndDontRequeueException.class);
+        }
+        properties.setMessageId(UUID.randomUUID().toString());
+        assertThatThrownBy(() -> consumer.receive(new Message(json.writeValueAsBytes(valid), properties)))
+                .isInstanceOf(AmqpRejectAndDontRequeueException.class);
+        deliver(valid);
+        assertBalances("80.00", "20.00", "0.00");
+    }
+
+    @Test
     void replayMessageIdCannotBeReusedForAnotherOperation() {
         var original = message();
         deliver(original);

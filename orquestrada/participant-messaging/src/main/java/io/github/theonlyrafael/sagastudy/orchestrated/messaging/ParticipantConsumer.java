@@ -11,21 +11,24 @@ import org.springframework.jdbc.core.JdbcTemplate;
 import org.springframework.stereotype.Component;
 import org.springframework.transaction.annotation.Transactional;
 import tools.jackson.core.JacksonException;
+import tools.jackson.databind.DeserializationFeature;
 import tools.jackson.databind.ObjectMapper;
+import tools.jackson.databind.ObjectReader;
 import tools.jackson.databind.node.ObjectNode;
 
 @Component
 @ConditionalOnProperty("inbox.queue")
 public class ParticipantConsumer {
     private final JdbcTemplate jdbc;
-    private final ObjectMapper mapper;
+    private final ObjectReader reader;
     private final ParticipantHandler handler;
     private final String consumer;
 
     public ParticipantConsumer(JdbcTemplate jdbc, ObjectMapper mapper, ParticipantHandler handler,
                                @Value("${inbox.queue}") String consumer) {
         this.jdbc = jdbc;
-        this.mapper = mapper;
+        this.reader = mapper.reader().with(DeserializationFeature.FAIL_ON_READING_DUP_TREE_KEY,
+                DeserializationFeature.FAIL_ON_TRAILING_TOKENS);
         this.handler = handler;
         this.consumer = consumer;
     }
@@ -36,8 +39,13 @@ public class ParticipantConsumer {
         CommandEnvelope command;
         ObjectNode request;
         try {
-            var tree = mapper.readTree(delivery.getBody());
+            var tree = reader.readTree(delivery.getBody());
             command = CommandEnvelope.parse(tree, delivery.getMessageProperties().getReceivedRoutingKey());
+            var metadata = delivery.getMessageProperties();
+            if ((metadata.getMessageId() != null && !metadata.getMessageId().equalsIgnoreCase(command.messageId().toString()))
+                    || (metadata.getType() != null && !metadata.getType().equals(command.type()))) {
+                throw new IllegalArgumentException("AMQP properties disagree with envelope");
+            }
             request = (ObjectNode) tree;
             request.remove("messageId");
             request.remove("occurredAt");
