@@ -13,6 +13,11 @@
     <name>order-service</name>
     <dependencies>
         <dependency>
+            <groupId>io.github.theonlyrafael.sagastudy</groupId>
+            <artifactId>participant-messaging</artifactId>
+            <version>${project.version}</version>
+        </dependency>
+        <dependency>
             <groupId>org.springframework.boot</groupId>
             <artifactId>spring-boot-starter-test</artifactId>
             <scope>test</scope>
