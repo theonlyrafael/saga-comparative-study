@@ -100,6 +100,21 @@ class SettlementServiceIntegrationTest {
     }
 
     @Test
+    void conflictingCommandDoesNotAuthorizeCompensationAfterSettlement() {
+        var command = message();
+        deliver(command);
+        var first = reply(command);
+        command.put("messageId", UUID.randomUUID().toString());
+        command.put("operationId", UUID.randomUUID().toString());
+        assertThatThrownBy(() -> deliver(command)).isInstanceOf(AmqpRejectAndDontRequeueException.class);
+        assertThat(service.findByOrderId(UUID.fromString(command.get("orderId").asString())))
+                .hasValueSatisfying(s -> assertThat(s.id().toString())
+                        .isEqualTo(first.get("payload").get("liquidacaoId").asString()));
+        assertThat(jdbc.queryForObject("SELECT count(*) FROM outbox_messages WHERE operation_id=?",
+                Integer.class, UUID.fromString(command.get("operationId").asString()))).isZero();
+    }
+
+    @Test
     void replayPreservesResponseAndAppliesOneDomainChange() {
         var command = message();
         deliver(command);
