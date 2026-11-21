@@ -167,6 +167,33 @@ class BalanceReservationServiceIntegrationTest {
     }
 
     @Test
+    void concurrentDeliveriesOfOneOperationReserveOnce() throws Exception {
+        var original = message();
+        var retry = original.deepCopy().put("messageId", UUID.randomUUID().toString());
+        concurrently(() -> { deliver(original); return true; }, () -> { deliver(retry); return true; });
+        assertBalances("80.00", "20.00", "0.00");
+        assertThat(reservationCount()).isOne();
+        assertThat(reply(original)).isEqualTo(reply(retry));
+    }
+
+    @Test
+    void failedOutboxWriteRollsBackTheClaimAndBalance() {
+        var command = message();
+        jdbc.execute("ALTER TABLE outbox_messages ADD CONSTRAINT inject_failure CHECK (false) NOT VALID");
+        try {
+            assertThatThrownBy(() -> deliver(command)).isInstanceOf(DataIntegrityViolationException.class);
+            assertBalances("100.00", "0.00", "0.00");
+            assertThat(reservationCount()).isZero();
+            assertThat(jdbc.queryForObject("SELECT count(*) FROM inbox_messages WHERE operation_id=?",
+                    Integer.class, UUID.fromString(command.get("operationId").asString()))).isZero();
+        } finally {
+            jdbc.execute("ALTER TABLE outbox_messages DROP CONSTRAINT inject_failure");
+        }
+        deliver(command);
+        assertBalances("80.00", "20.00", "0.00");
+    }
+
+    @Test
     void replaysRefusalEvenAfterResourceBecomesAvailable() {
         var command = message();
         jdbc.update("UPDATE accounts SET available_balance=0");
