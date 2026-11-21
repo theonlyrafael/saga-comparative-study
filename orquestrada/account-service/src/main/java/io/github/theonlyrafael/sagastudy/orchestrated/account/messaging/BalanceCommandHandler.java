@@ -24,10 +24,38 @@ public class BalanceCommandHandler implements ParticipantHandler {
 
     @Override
     public CommandReply handle(CommandEnvelope command) {
-        if (!command.type().equals("ReservarSaldo")) {
-            throw new AmqpRejectAndDontRequeueException("Unexpected reservation command");
+        try {
+            return switch (command.type()) {
+                case "ReservarSaldo" -> reserve(command);
+                case "ConfirmarReservaSaldo" -> transition(command, true);
+                case "DesfazerReservaSaldo" -> transition(command, false);
+                default -> throw new AmqpRejectAndDontRequeueException("Unexpected reservation command");
+            };
+        } catch (BalanceReservationException conflict) {
+            throw new AmqpRejectAndDontRequeueException("Incompatible reservation command", conflict);
         }
-        return reserve(command);
+    }
+
+    private CommandReply transition(CommandEnvelope command, boolean confirm) {
+        var id = command.resource("reservaSaldoId");
+        var snapshot = command.payload().deepCopy();
+        snapshot.remove("reservaSaldoId");
+        snapshot.remove("liquidacaoId");
+        boolean matches = Boolean.TRUE.equals(jdbc.queryForObject("""
+                SELECT EXISTS (SELECT 1 FROM balance_reservations r
+                    LEFT JOIN outbox_messages o ON o.operation_id = r.operation_id AND o.consumer_name = ?
+                    WHERE r.reservation_id = ? AND r.order_id = ? AND r.saga_id = ?
+                    AND r.account_id = ? AND r.amount = ?
+                    AND (o.request IS NULL OR ((o.request->'payload') - 'reservaSaldoId') = ?::jsonb))
+                """, Boolean.class, "saga.v1.account", id, command.orderId(), command.sagaId(),
+                command.payload().get("clienteId").asString(), new BigDecimal(command.payload().get("valorTotal").asString()), snapshot.toString()));
+        if (!matches) throw new AmqpRejectAndDontRequeueException("Reservation and command do not match");
+        if (confirm) {
+            reservations.confirm(id);
+            return CommandReply.of(command, "SaldoConfirmado");
+        }
+        reservations.release(id);
+        return CommandReply.of(command, "ReservaSaldoDesfeita");
     }
 
     private CommandReply reserve(CommandEnvelope command) {
