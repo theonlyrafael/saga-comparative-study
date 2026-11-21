@@ -31,7 +31,8 @@ import static org.awaitility.Awaitility.await;
 
 @Testcontainers
 @SpringBootTest(webEnvironment = SpringBootTest.WebEnvironment.NONE, properties = {
-        "spring.rabbitmq.listener.simple.auto-startup=false", "outbox.poll-interval=100ms"
+        "spring.rabbitmq.listener.simple.auto-startup=false", "outbox.poll-interval=100ms",
+        "spring.rabbitmq.listener.simple.concurrency=2", "spring.rabbitmq.listener.simple.prefetch=1"
 })
 class AccountBrokerIntegrationTest {
     @Container static final PostgreSQLContainer DB = new PostgreSQLContainer(DockerImageName.parse(
@@ -61,13 +62,16 @@ class AccountBrokerIntegrationTest {
     @Autowired RabbitTemplate rabbit;
     @Autowired RabbitListenerEndpointRegistry listeners;
 
+    private String replyQueue;
+
     @BeforeEach
     void prepareRoutes() {
         var admin = new RabbitAdmin(rabbit);
         var commands = new DirectExchange("saga.v1.commands");
         var responses = new DirectExchange("saga.v1.responses");
         var input = QueueBuilder.durable(QUEUE).deadLetterExchange("").deadLetterRoutingKey("bad-input").build();
-        var output = new Queue("replies");
+        replyQueue = "replies-" + UUID.randomUUID();
+        var output = new Queue(replyQueue);
         admin.declareExchange(commands);
         admin.declareExchange(responses);
         admin.declareQueue(input);
@@ -80,6 +84,7 @@ class AccountBrokerIntegrationTest {
     @AfterEach
     void stopListeners() {
         listeners.stop();
+        new RabbitAdmin(rabbit).deleteQueue(replyQueue);
     }
 
     private Message fundedCommand() {
@@ -112,12 +117,12 @@ class AccountBrokerIntegrationTest {
             var properties = new MessageProperties();
             properties.setReceivedRoutingKey(delivery.getEnvelope().getRoutingKey());
             consumer.receive(new Message(delivery.getBody(), properties));
-            first = rabbit.receive("replies", 10000);
+            first = rabbit.receive(replyQueue, 10000);
             assertThat(first).isNotNull();
             // Closing the channel with delivery still unacknowledged forces a broker redelivery.
         }
         listeners.start();
-        var replay = rabbit.receive("replies", 10000);
+        var replay = rabbit.receive(replyQueue, 10000);
         assertThat(replay).isNotNull();
         assertThat(replay.getBody()).isEqualTo(first.getBody());
         assertThat(replay.getMessageProperties().getMessageId()).isEqualTo(first.getMessageProperties().getMessageId());
@@ -145,7 +150,7 @@ class AccountBrokerIntegrationTest {
             listeners.start();
             var command = fundedCommand();
             rabbit.send("saga.v1.commands", COMMAND, command);
-            var result = rabbit.receive("replies", 15000);
+            var result = rabbit.receive(replyQueue, 15000);
             assertThat(result).isNotNull();
             assertThat(jdbc.queryForObject("SELECT last_value FROM commit_attempt", Long.class)).isEqualTo(2);
             assertReservedOnce(command);
@@ -162,6 +167,25 @@ class AccountBrokerIntegrationTest {
                 java.math.BigDecimal.class, body.get("payload").get("clienteId").asString())).isEqualByComparingTo("20");
         assertThat(jdbc.queryForObject("SELECT count(*) FROM balance_reservations WHERE order_id=?",
                 Integer.class, UUID.fromString(body.get("orderId").asString()))).isOne();
+    }
+
+    @Test
+    void competingListenersProcessTwoEnvelopesForTheSameOperation() {
+        var original = fundedCommand();
+        var duplicate = (ObjectNode) json.readTree(original.getBody());
+        duplicate.put("messageId", UUID.randomUUID().toString());
+        rabbit.send("saga.v1.commands", COMMAND, original);
+        rabbit.send("saga.v1.commands", COMMAND, new Message(json.writeValueAsBytes(duplicate)));
+        listeners.start();
+        var operation = UUID.fromString(duplicate.get("operationId").asString());
+        await().atMost(Duration.ofSeconds(15)).untilAsserted(() ->
+                assertThat(jdbc.queryForObject("SELECT count(*) FROM inbox_deliveries WHERE operation_id=?",
+                        Integer.class, operation)).isEqualTo(2));
+        await().atMost(Duration.ofSeconds(15)).untilAsserted(() ->
+                assertThat(jdbc.queryForObject("SELECT published_at IS NOT NULL FROM outbox_messages WHERE operation_id=?",
+                        Boolean.class, operation)).isTrue());
+        assertReservedOnce(original);
+        assertThat(rabbit.receive(replyQueue, 10000)).isNotNull();
     }
 
     @Test
