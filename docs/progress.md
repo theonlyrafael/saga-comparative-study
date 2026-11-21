@@ -1,5 +1,15 @@
 # Progresso — Saga orquestrada
 
+## Inbox dos participantes — 21/11/2026
+
+Na branch `feat/orchestrated-inbox`, conta, custódia e liquidação consomem os sete comandos v1 dos participantes. Cada serviço grava a operação na Inbox, aplica a regra de negócio e guarda a resposta na Outbox em uma única transação PostgreSQL. A reentrega de uma operação com conteúdo equivalente recupera o envelope original, inclusive quando o resultado foi uma recusa por falta de saldo ou estoque.
+
+O `clean verify` com JDK 17 executou **239 testes Java** (40 em ordens, 66 em conta, 85 em custódia e 48 em liquidação), todos aprovados. Passaram também os cinco testes Python de contrato e o teste das rotas dos 21 tipos v1 em um vhost temporário.
+
+Com PostgreSQL 17.11 e RabbitMQ 4.4.0, a suíte de conta exercitou duas entregas concorrentes, falha no commit e fechamento do canal com o ACK pendente após um commit bem-sucedido. A reserva foi aplicada uma vez em cada cenário. Após a perda do ACK, o broker reentregou o comando e o consumidor republicou a resposta com o mesmo corpo e identificador. A suíte verificou também o encaminhamento de entrada inválida para DLQ.
+
+Os testes de custódia cobrem reserva, confirmação, liberação e recusa durável. Em liquidação, um conflito com uma decisão confirmada segue para reconciliação via DLQ. O coordenador persistente, a autorização de compensações e o fluxo completo da ordem até um estado final seguem pendentes. Os passos para reproduzir a validação estão no [guia de execução local](execucao-local.md).
+
 ## Mensageria de ordens — 19/11/2026
 
 Na branch `feat/orchestrated-messaging`, as seis etapas de mensageria de ordens
