@@ -1,4 +1,4 @@
-package io.github.theonlyrafael.sagastudy.orchestrated.order.messaging;
+package io.github.theonlyrafael.sagastudy.orchestrated.messaging;
 
 import org.springframework.boot.autoconfigure.condition.ConditionalOnProperty;
 import org.springframework.scheduling.annotation.EnableScheduling;
