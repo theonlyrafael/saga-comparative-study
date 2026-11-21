@@ -2,7 +2,16 @@ package io.github.theonlyrafael.sagastudy.orchestrated.account.application;
 
 import io.github.theonlyrafael.sagastudy.orchestrated.account.domain.BalanceReservationException;
 import org.junit.jupiter.api.BeforeEach;
+import io.github.theonlyrafael.sagastudy.orchestrated.messaging.ParticipantConsumer;
 import org.junit.jupiter.api.Test;
+import org.springframework.amqp.core.Message;
+import org.springframework.amqp.core.MessageProperties;
+import org.springframework.amqp.AmqpRejectAndDontRequeueException;
+import tools.jackson.databind.ObjectMapper;
+import tools.jackson.databind.node.ObjectNode;
+
+import static org.assertj.core.api.Assertions.assertThat;
+import static org.assertj.core.api.Assertions.assertThatThrownBy;
 import org.junit.jupiter.params.ParameterizedTest;
 import org.junit.jupiter.params.provider.ValueSource;
 import org.junit.jupiter.params.provider.CsvSource;
@@ -99,6 +108,53 @@ class BalanceReservationServiceIntegrationTest {
                 BigDecimal.ZERO,
                 BigDecimal.ZERO
         );
+    }
+
+    @Autowired ParticipantConsumer consumer;
+    @Autowired ObjectMapper json;
+
+    private ObjectNode message() {
+        var command = json.createObjectNode();
+        command.put("type", "ReservarSaldo");
+        command.put("schemaVersion", 1);
+        for (String field : java.util.List.of("orderId", "sagaId", "operationId", "messageId")) {
+            command.put(field, UUID.randomUUID().toString());
+        }
+        command.put("occurredAt", "2026-11-20T10:00:00Z");
+        var payload = command.putObject("payload");
+        payload.put("clienteId", "CLI001");
+        payload.put("ativoId", "ASSET");
+        payload.put("quantidade", 2);
+        payload.put("precoUnitario", "10.00");
+        payload.put("valorTotal", "20.00");
+        payload.put("versaoCatalogo", "v1");
+        return command;
+    }
+
+    private void deliver(ObjectNode command) {
+        var properties = new MessageProperties();
+        properties.setReceivedRoutingKey(command.get("type").asString());
+        consumer.receive(new Message(json.writeValueAsBytes(command), properties));
+    }
+
+    private ObjectNode reply(ObjectNode command) {
+        String envelope = jdbc.queryForObject("SELECT envelope::text FROM outbox_messages WHERE operation_id = ?",
+                String.class, UUID.fromString(command.get("operationId").asString()));
+        return (ObjectNode) json.readTree(envelope);
+    }
+
+    @Test
+    void replayPreservesResponseAndAppliesOneDomainChange() {
+        var command = message();
+        deliver(command);
+        var first = reply(command);
+        assertThat(first.get("type").asString()).isEqualTo("SaldoReservado");
+        deliver(command);
+        command.put("messageId", UUID.randomUUID().toString());
+        deliver(command);
+        assertThat(reply(command)).isEqualTo(first);
+        assertThat(jdbc.queryForObject("SELECT count(*) FROM balance_reservations", Integer.class)).isOne();
+        assertBalances("80.00", "20.00", "0.00");
     }
 
     @Test
