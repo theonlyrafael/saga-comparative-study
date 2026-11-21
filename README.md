@@ -26,7 +26,7 @@ Estudo comparativo de Sagas para a compra simulada de um ativo. O desenvolviment
 
 - [x] Criar índices únicos por consumidor, mensagem e operação em cada banco.
 - [x] Consumir comandos de saldo.
-- [ ] Consumir comandos de custódia.
+- [x] Consumir comandos de custódia.
 - [ ] Consumir comandos de liquidação.
 - [ ] Validar concorrência, rollback e reentrega após commit.
 
