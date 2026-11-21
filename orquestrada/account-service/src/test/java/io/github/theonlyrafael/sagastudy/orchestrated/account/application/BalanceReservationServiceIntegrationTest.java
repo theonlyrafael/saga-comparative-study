@@ -167,6 +167,18 @@ class BalanceReservationServiceIntegrationTest {
     }
 
     @Test
+    void replayMessageIdCannotBeReusedForAnotherOperation() {
+        var original = message();
+        deliver(original);
+        var retryId = UUID.randomUUID().toString();
+        deliver(original.deepCopy().put("messageId", retryId));
+        var unrelated = message().put("messageId", retryId);
+        assertThatThrownBy(() -> deliver(unrelated)).isInstanceOf(AmqpRejectAndDontRequeueException.class);
+        assertThat(reservationCount()).isOne();
+        assertBalances("80.00", "20.00", "0.00");
+    }
+
+    @Test
     void concurrentDeliveriesOfOneOperationReserveOnce() throws Exception {
         var original = message();
         var retry = original.deepCopy().put("messageId", UUID.randomUUID().toString());

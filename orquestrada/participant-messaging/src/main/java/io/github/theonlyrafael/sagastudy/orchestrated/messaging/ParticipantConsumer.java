@@ -49,6 +49,7 @@ public class ParticipantConsumer {
                 INSERT INTO inbox_messages (consumer_name, message_id, operation_id)
                 VALUES (?, ?, ?) ON CONFLICT DO NOTHING
                 """, consumer, command.messageId(), command.operationId());
+        bindDelivery(command);
         if (inserted == 0) {
             replay(command, request);
             return;
@@ -67,14 +68,22 @@ public class ParticipantConsumer {
                 """, id, consumer, command.operationId(), reply.type(), request.toString(), envelope.toString());
     }
 
+    private void bindDelivery(CommandEnvelope command) {
+        int accepted = jdbc.update("""
+                INSERT INTO inbox_deliveries (consumer_name, message_id, operation_id) VALUES (?, ?, ?)
+                ON CONFLICT (consumer_name, message_id) DO UPDATE SET operation_id = EXCLUDED.operation_id
+                WHERE inbox_deliveries.operation_id = EXCLUDED.operation_id
+                """, consumer, command.messageId(), command.operationId());
+        if (accepted == 0) {
+            throw new AmqpRejectAndDontRequeueException("Message ID already belongs to another operation");
+        }
+    }
+
     private void replay(CommandEnvelope command, ObjectNode request) {
         int matched = jdbc.update("""
                 UPDATE outbox_messages SET published_at = NULL, next_attempt_at = CURRENT_TIMESTAMP
                 WHERE consumer_name = ? AND operation_id = ? AND request = ?::jsonb
-                AND NOT EXISTS (SELECT 1 FROM inbox_messages WHERE consumer_name = ?
-                                AND message_id = ? AND operation_id <> ?)
-                """, consumer, command.operationId(), request.toString(), consumer,
-                command.messageId(), command.operationId());
+                """, consumer, command.operationId(), request.toString());
         if (matched != 1) {
             throw new AmqpRejectAndDontRequeueException("Identifier reused with a different command");
         }
