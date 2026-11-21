@@ -1,0 +1,82 @@
+package io.github.theonlyrafael.sagastudy.orchestrated.messaging;
+
+import java.time.Instant;
+import java.util.UUID;
+import org.springframework.amqp.AmqpRejectAndDontRequeueException;
+import org.springframework.amqp.core.Message;
+import org.springframework.amqp.rabbit.annotation.RabbitListener;
+import org.springframework.beans.factory.annotation.Value;
+import org.springframework.boot.autoconfigure.condition.ConditionalOnProperty;
+import org.springframework.jdbc.core.JdbcTemplate;
+import org.springframework.stereotype.Component;
+import org.springframework.transaction.annotation.Transactional;
+import tools.jackson.core.JacksonException;
+import tools.jackson.databind.ObjectMapper;
+import tools.jackson.databind.node.ObjectNode;
+
+@Component
+@ConditionalOnProperty("inbox.queue")
+public class ParticipantConsumer {
+    private final JdbcTemplate jdbc;
+    private final ObjectMapper mapper;
+    private final ParticipantHandler handler;
+    private final String consumer;
+
+    public ParticipantConsumer(JdbcTemplate jdbc, ObjectMapper mapper, ParticipantHandler handler,
+                               @Value("${inbox.queue}") String consumer) {
+        this.jdbc = jdbc;
+        this.mapper = mapper;
+        this.handler = handler;
+        this.consumer = consumer;
+    }
+
+    @Transactional
+    @RabbitListener(queues = "${inbox.queue}")
+    public void receive(Message delivery) {
+        CommandEnvelope command;
+        ObjectNode request;
+        try {
+            var tree = mapper.readTree(delivery.getBody());
+            command = CommandEnvelope.parse(tree, delivery.getMessageProperties().getReceivedRoutingKey());
+            request = (ObjectNode) tree;
+            request.remove("messageId");
+            request.remove("occurredAt");
+        } catch (IllegalArgumentException | java.time.DateTimeException | JacksonException invalid) {
+            throw new AmqpRejectAndDontRequeueException("Invalid v1 command", invalid);
+        }
+
+        int inserted = jdbc.update("""
+                INSERT INTO inbox_messages (consumer_name, message_id, operation_id)
+                VALUES (?, ?, ?) ON CONFLICT DO NOTHING
+                """, consumer, command.messageId(), command.operationId());
+        if (inserted == 0) {
+            replay(command, request);
+            return;
+        }
+
+        var reply = handler.handle(command);
+        var id = UUID.randomUUID();
+        var envelope = request.deepCopy();
+        envelope.put("messageId", id.toString());
+        envelope.put("occurredAt", Instant.now().toString());
+        envelope.put("type", reply.type());
+        envelope.set("payload", reply.payload());
+        jdbc.update("""
+                INSERT INTO outbox_messages (message_id, consumer_name, operation_id, message_type, request, envelope)
+                VALUES (?, ?, ?, ?, ?::jsonb, ?::jsonb)
+                """, id, consumer, command.operationId(), reply.type(), request.toString(), envelope.toString());
+    }
+
+    private void replay(CommandEnvelope command, ObjectNode request) {
+        int matched = jdbc.update("""
+                UPDATE outbox_messages SET published_at = NULL, next_attempt_at = CURRENT_TIMESTAMP
+                WHERE consumer_name = ? AND operation_id = ? AND request = ?::jsonb
+                AND NOT EXISTS (SELECT 1 FROM inbox_messages WHERE consumer_name = ?
+                                AND message_id = ? AND operation_id <> ?)
+                """, consumer, command.operationId(), request.toString(), consumer,
+                command.messageId(), command.operationId());
+        if (matched != 1) {
+            throw new AmqpRejectAndDontRequeueException("Identifier reused with a different command");
+        }
+    }
+}
