@@ -42,6 +42,8 @@ import static org.junit.jupiter.api.Assertions.assertTrue;
         "spring.rabbitmq.username=unused",
         "spring.rabbitmq.password=unused",
         "spring.rabbitmq.dynamic=false",
+                "spring.rabbitmq.listener.simple.auto-startup=false",
+                "outbox.publisher.enabled=false",
         "management.health.rabbit.enabled=false",
         "management.endpoint.health.group.readiness.include=db"
 })
