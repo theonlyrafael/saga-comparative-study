@@ -1,4 +1,4 @@
-package io.github.theonlyrafael.sagastudy.orchestrated.order.messaging;
+package io.github.theonlyrafael.sagastudy.orchestrated.messaging;
 
 import java.util.concurrent.ExecutionException;
 import java.util.concurrent.TimeoutException;
@@ -13,10 +13,10 @@ import org.springframework.transaction.annotation.Transactional;
 public class OutboxDispatcher {
     private static final Logger LOG = LoggerFactory.getLogger(OutboxDispatcher.class);
     private final OutboxDeliveryStore store;
-    private final OrderEventSender sender;
+    private final ResponseSender sender;
     private final long retryMillis;
 
-    public OutboxDispatcher(OutboxDeliveryStore store, OrderEventSender sender,
+    public OutboxDispatcher(OutboxDeliveryStore store, ResponseSender sender,
                             @Value("${outbox.retry-delay-ms:5000}") long retryMillis) {
         if (retryMillis <= 0) throw new IllegalArgumentException("Positive retry delay required");
         this.store = store;

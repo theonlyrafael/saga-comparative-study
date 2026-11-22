@@ -1,7 +1,7 @@
 package io.github.theonlyrafael.sagastudy.orchestrated.order;
 
-import io.github.theonlyrafael.sagastudy.orchestrated.order.messaging.OrderEventSender;
-import io.github.theonlyrafael.sagastudy.orchestrated.order.messaging.PendingMessage;
+import io.github.theonlyrafael.sagastudy.orchestrated.messaging.ResponseSender;
+import io.github.theonlyrafael.sagastudy.orchestrated.messaging.PendingMessage;
 import org.junit.jupiter.api.Test;
 import org.springframework.amqp.core.Message;
 import org.springframework.amqp.rabbit.connection.CorrelationData;
@@ -24,11 +24,11 @@ class OrderEventSenderTest {
             attempt.getFuture().complete(new CorrelationData.Confirm(false, "nack"));
             return null;
         }).when(rabbit).send(anyString(), anyString(), any(Message.class), any(CorrelationData.class));
-        assertThat(new OrderEventSender(rabbit, 1000).send(event)).isFalse();
+        assertThat(new ResponseSender(rabbit, 1000).send(event)).isFalse();
     }
 
     @Test void missingConfirmationTimesOut() {
-        assertThatThrownBy(() -> new OrderEventSender(rabbit, 20).send(event))
+        assertThatThrownBy(() -> new ResponseSender(rabbit, 20).send(event))
                 .isInstanceOf(TimeoutException.class);
     }
 }
