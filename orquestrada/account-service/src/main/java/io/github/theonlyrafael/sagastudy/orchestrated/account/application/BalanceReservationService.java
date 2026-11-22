@@ -1,6 +1,7 @@
 package io.github.theonlyrafael.sagastudy.orchestrated.account.application;
 
 import io.github.theonlyrafael.sagastudy.orchestrated.account.domain.BalanceReservation;
+import io.github.theonlyrafael.sagastudy.orchestrated.account.domain.BalanceReservationRefusal;
 import io.github.theonlyrafael.sagastudy.orchestrated.account.domain.BalanceReservationException;
 import io.github.theonlyrafael.sagastudy.orchestrated.account.domain.BalanceReservationStatus;
 import io.github.theonlyrafael.sagastudy.orchestrated.account.repository.AccountRepository;
@@ -31,7 +32,7 @@ public class BalanceReservationService {
         this.reservations = reservations;
     }
 
-    @Transactional
+    @Transactional(noRollbackFor = BalanceReservationRefusal.class)
     public UUID reserve(ReserveBalanceCommand command) {
         Objects.requireNonNull(command, "command is required");
 
@@ -63,7 +64,7 @@ public class BalanceReservationService {
         );
 
         if (changedRows != 1) {
-            throw new BalanceReservationException(
+            throw new BalanceReservationRefusal(
                     INSUFFICIENT_BALANCE,
                     "The account does not have enough available balance"
             );
@@ -152,7 +153,7 @@ public class BalanceReservationService {
 
     private void lockAccount(String accountId) {
         accounts.findForUpdate(accountId)
-                .orElseThrow(() -> new BalanceReservationException(
+                .orElseThrow(() -> new BalanceReservationRefusal(
                         ACCOUNT_NOT_FOUND,
                         "Account was not found"
                 ));

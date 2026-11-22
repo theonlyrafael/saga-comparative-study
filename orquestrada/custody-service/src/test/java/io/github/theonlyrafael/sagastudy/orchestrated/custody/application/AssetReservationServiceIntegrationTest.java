@@ -4,7 +4,16 @@ import io.github.theonlyrafael.sagastudy.orchestrated.custody.domain.AssetReserv
 import io.github.theonlyrafael.sagastudy.orchestrated.custody.repository.AssetReservationRepository;
 import io.github.theonlyrafael.sagastudy.orchestrated.custody.repository.PositionRepository;
 import org.junit.jupiter.api.BeforeEach;
+import io.github.theonlyrafael.sagastudy.orchestrated.messaging.ParticipantConsumer;
 import org.junit.jupiter.api.Test;
+import org.springframework.amqp.core.Message;
+import org.springframework.amqp.core.MessageProperties;
+import org.springframework.amqp.AmqpRejectAndDontRequeueException;
+import tools.jackson.databind.ObjectMapper;
+import tools.jackson.databind.node.ObjectNode;
+
+import static org.assertj.core.api.Assertions.assertThat;
+import static org.assertj.core.api.Assertions.assertThatThrownBy;
 import org.junit.jupiter.params.ParameterizedTest;
 import org.junit.jupiter.params.provider.ValueSource;
 import org.springframework.beans.factory.annotation.Autowired;
@@ -42,6 +51,8 @@ import static org.junit.jupiter.api.Assertions.assertTrue;
         "spring.rabbitmq.username=unused",
         "spring.rabbitmq.password=unused",
         "spring.rabbitmq.dynamic=false",
+                "spring.rabbitmq.listener.simple.auto-startup=false",
+                "outbox.publisher.enabled=false",
         "management.health.rabbit.enabled=false",
         "management.endpoint.health.group.readiness.include=db"
 })
@@ -70,6 +81,92 @@ class AssetReservationServiceIntegrationTest {
         jdbc.update("DELETE FROM asset_reservations");
         jdbc.update("DELETE FROM positions");
         seedPosition("SELLER", "ASSET", 10, 0);
+    }
+
+    @Autowired ParticipantConsumer consumer;
+    @Autowired ObjectMapper json;
+
+    private ObjectNode message() {
+        var command = json.createObjectNode();
+        command.put("type", "ReservarAtivo");
+        command.put("schemaVersion", 1);
+        for (String field : java.util.List.of("orderId", "sagaId", "operationId", "messageId")) {
+            command.put(field, UUID.randomUUID().toString());
+        }
+        command.put("occurredAt", "2026-11-20T10:00:00Z");
+        var payload = command.putObject("payload");
+        payload.put("clienteId", "CLI001");
+        payload.put("ativoId", "ASSET");
+        payload.put("quantidade", 2);
+        payload.put("precoUnitario", "10.00");
+        payload.put("valorTotal", "20.00");
+        payload.put("versaoCatalogo", "v1");
+        payload.put("reservaSaldoId", UUID.randomUUID().toString());
+        return command;
+    }
+
+    private void deliver(ObjectNode command) {
+        var properties = new MessageProperties();
+        properties.setReceivedRoutingKey(command.get("type").asString());
+        consumer.receive(new Message(json.writeValueAsBytes(command), properties));
+    }
+
+    private ObjectNode reply(ObjectNode command) {
+        String envelope = jdbc.queryForObject("SELECT envelope::text FROM outbox_messages WHERE operation_id = ?",
+                String.class, UUID.fromString(command.get("operationId").asString()));
+        return (ObjectNode) json.readTree(envelope);
+    }
+
+    @ParameterizedTest
+    @ValueSource(booleans = {true, false})
+    void correlatesTerminalCommandAndAppliesItOnce(boolean confirm) {
+        var reserve = message();
+        deliver(reserve);
+        var reservation = reply(reserve).get("payload").get("reservaAtivoId").asString();
+        var terminal = reserve.deepCopy();
+        terminal.put("messageId", UUID.randomUUID().toString());
+        terminal.put("operationId", UUID.randomUUID().toString());
+        terminal.put("type", (confirm ? "Confirmar" : "Desfazer") + "ReservaAtivo");
+        var payload = (ObjectNode) terminal.get("payload");
+        payload.remove("reservaSaldoId");
+        payload.put("reservaAtivoId", reservation);
+        if (confirm) payload.put("liquidacaoId", UUID.randomUUID().toString());
+        var wrongOrder = terminal.deepCopy();
+        wrongOrder.put("orderId", UUID.randomUUID().toString());
+        assertThatThrownBy(() -> deliver(wrongOrder)).isInstanceOf(AmqpRejectAndDontRequeueException.class);
+        deliver(terminal);
+        deliver(terminal);
+        assertThat(reply(terminal).get("type").asString())
+                .isEqualTo(confirm ? "AtivoConfirmado" : "ReservaAtivoDesfeita");
+        assertPosition("SELLER", "ASSET", confirm ? 8 : 10, 0);
+        if (confirm) assertPosition("CLI001", "ASSET", 2, 0);
+    }
+
+    @Test
+    void replaysRefusalEvenAfterResourceBecomesAvailable() {
+        var command = message();
+        jdbc.update("UPDATE positions SET available_quantity=0");
+        deliver(command);
+        var refused = reply(command);
+        assertThat(refused.get("payload").get("motivo").asString()).isEqualTo("ATIVO_INSUFICIENTE");
+        jdbc.update("UPDATE positions SET available_quantity=10");
+        deliver(command);
+        assertThat(reply(command)).isEqualTo(refused);
+        assertThat(reservationCount()).isZero();
+    }
+
+    @Test
+    void replayPreservesResponseAndAppliesOneDomainChange() {
+        var command = message();
+        deliver(command);
+        var first = reply(command);
+        assertThat(first.get("type").asString()).isEqualTo("AtivoReservado");
+        deliver(command);
+        command.put("messageId", UUID.randomUUID().toString());
+        deliver(command);
+        assertThat(reply(command)).isEqualTo(first);
+        assertThat(jdbc.queryForObject("SELECT count(*) FROM asset_reservations", Integer.class)).isOne();
+        assertPosition("SELLER", "ASSET", 8, 2);
     }
 
     @Test
