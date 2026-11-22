@@ -2,17 +2,17 @@
 
 Rafael Fraga · IC / UFU · 29 de outubro de 2026
 
-Este guia prepara o ambiente e a organização do repositório para começar pela Saga orquestrada. A especificação técnica anexada, datada de 29/10/2026, é a referência de implementação. Os comandos abaixo são instruções para você executar no computador. Nenhum deles foi executado no seu GitHub ou no seu Windows durante a elaboração deste guia.
+Este guia prepara o ambiente e a organização do repositório para começar pela Saga orquestrada. A especificação técnica anexada, datada de 29/10/2026, é a referência de implementação. Registrei os comandos para execução local. Durante a elaboração do guia, eles não foram executados no meu GitHub ou no meu Windows.
 
 **Limite desta etapa:** instalar e verificar ferramentas, clonar o repositório, criar uma branch, preparar pastas, documentação e regras de versionamento. Não criar classes Java, testes Java, POMs, SQL, Dockerfiles ou Docker Compose nesta etapa. A geração pelo Spring Initializr fica descrita para o próximo passo, porque o botão Generate já produz código, mesmo sem regras de negócio.
 
-**1. O que foi conferido e o que veio do seu relato**
+**1. Verificações e contexto inicial**
 
 Foi possível autenticar a conexão GitHub como `theonlyrafael` e consultar o repositório público `saga-financial-transactions-api`. Na branch padrão `main`, ele possui um POM agregador e os módulos `conta-service`, `custodia-service` e `orquestrador-service`. O POM do módulo de conta declara Java 17, Spring Boot 4.1.0, Spring Data JPA, AMQP e H2. Também há Maven Wrapper nos módulos.
 
-Essa organização é compatível com projetos gerados pelo Spring Initializr. Os arquivos não comprovam por si só que você usou o site, mas os ZIPs de que se lembra provavelmente vieram de [start.spring.io](https://start.spring.io/).
+Essa organização é compatível com projetos gerados pelo Spring Initializr. Pelo que lembro dos ZIPs, provavelmente usei o site [start.spring.io](https://start.spring.io/).
 
-O repositório `saga-comparative-study` retornou 404 para a conexão atual e não apareceu na busca pelo nome. Portanto, o estado inicial “README e .gitignore de Java” é o que você informou, não um conteúdo que eu tenha conseguido inspecionar. Isso não prova que o repositório não exista. Confira, na configuração da integração GitHub, se ele está entre os repositórios autorizados, especialmente se for privado ou recém-criado.
+O repositório `saga-comparative-study` retornou 404 para a conexão atual e não apareceu na busca pelo nome. Minha descrição inicial era “README e .gitignore de Java”. A consulta não permitiu verificá-la naquela ocasião. Isso não prova que o repositório não exista. Confira, na configuração da integração GitHub, se ele está entre os repositórios autorizados, especialmente se for privado ou recém-criado.
 
 O protótipo serve como referência de organização Maven e ferramentas. As responsabilidades dos serviços, os contratos, a persistência e os critérios de recuperação do novo sistema vêm da especificação da IC.
 
@@ -54,7 +54,7 @@ O documento anexado especifica a modalidade orquestrada. Ele exige preservar as 
 | Thunder Client | Enviar requisições HTTP durante o desenvolvimento |
 | Actuator / Micrometer / OpenTelemetry | Saúde, métricas e rastreamento, a configurar na implementação |
 
-**H2 e JPA são coisas diferentes.** H2 é um banco. JPA é uma especificação de persistência. O H2 pode operar em memória ou em arquivo. No seu protótipo, o README descreve o modo em memória. Usar JPA não obriga a usar H2 nem provoca perda de dados ao desligar a aplicação.
+**H2 e JPA são coisas diferentes.** H2 é um banco. JPA é uma especificação de persistência. O H2 pode operar em memória ou em arquivo. No meu protótipo, o README descreve o modo em memória. Usar JPA não obriga a usar H2 nem provoca perda de dados ao desligar a aplicação.
 
 No projeto novo, podemos manter Spring Data JPA e Hibernate, usando PostgreSQL. A persistência também dependerá de volumes Docker e de não recriar o esquema ao iniciar. Para concorrência e recuperação, os testes integrados deverão usar PostgreSQL, pois H2 não reproduz todos os seus comportamentos.
 
@@ -89,7 +89,7 @@ Downloads e referências oficiais:
 
 **5. Preparar seu Windows e o VS Code**
 
-Para o seu Windows 11, a proposta é executar Java e Maven no Windows e usar Docker Desktop com backend WSL 2 para PostgreSQL e RabbitMQ. Os comandos de arquivos e Git deste guia usam **Git Bash**, inclusive quando aberto no terminal do VS Code. Não misture a instalação Java do Windows com a da sua VM Ubuntu neste roteiro.
+Para o meu Windows 11, a proposta é executar Java e Maven no Windows e usar Docker Desktop com backend WSL 2 para PostgreSQL e RabbitMQ. Os comandos de arquivos e Git deste guia usam **Git Bash**, inclusive quando aberto no terminal do VS Code. Não misture a instalação Java do Windows com a da VM Ubuntu neste roteiro.
 
 1. Instale Git for Windows e abra Git Bash.
 2. Instale Temurin JDK 21, arquitetura x64 e pacote JDK. Configure `JAVA_HOME` para a pasta do JDK e inclua seu diretório `bin` no `PATH`, se o instalador não fizer isso.
@@ -130,7 +130,7 @@ docker run --rm hello-world
 
 Esse comando precisa baixar uma imagem se ela ainda não estiver no computador.
 
-Considerando o notebook com 8 GB que você mencionou, a proposta inicial é evitar manter a VM VMware aberta junto da infraestrutura. Execute uma modalidade por vez. As cinco JVMs, o VS Code, o Windows e o Docker podem pressionar a memória. Os 8 GB listados nos requisitos do Docker não são uma garantia de desempenho para toda essa carga.
+Considerando meu notebook com 8 GB, a proposta inicial é evitar manter a VM VMware aberta junto da infraestrutura. Execute uma modalidade por vez. As cinco JVMs, o VS Code, o Windows e o Docker podem pressionar a memória. Os 8 GB listados nos requisitos do Docker não são uma garantia de desempenho para toda essa carga.
 
 **6. Clonar o repositório existente e abrir a primeira branch**
 
@@ -268,7 +268,7 @@ Inicialização do sistema, endpoints executáveis, diagramas da implementação
 
 **9. Planejar a infraestrutura que será criada em seguida**
 
-Para desenvolvimento no seu notebook, este guia recomenda **um contêiner PostgreSQL com cinco bancos distintos e cinco usuários de aplicação**, além de um RabbitMQ. É uma proposta de organização local permitida pelo isolamento equivalente previsto no documento, desde que as permissões sejam configuradas de fato.
+Para desenvolvimento no meu notebook, este guia recomenda **um contêiner PostgreSQL com cinco bancos distintos e cinco usuários de aplicação**, além de um RabbitMQ. É uma proposta de organização local permitida pelo isolamento equivalente previsto no documento, desde que as permissões sejam configuradas de fato.
 
 | Serviço | Banco | Usuário de aplicação | Porta HTTP proposta |
 | --- | --- | --- | --- |
@@ -298,7 +298,7 @@ Aplicações executadas no Windows usarão `localhost` e as portas publicadas. Q
 
 Na próxima etapa, o Compose deverá incluir volumes persistentes para PostgreSQL e RabbitMQ, credenciais externas, healthchecks, nomes de projeto próprios e versões de imagens fixadas. Interromper os contêineres deve preservar os dados. Remover os volumes é um reset deliberado dos dados, que precisa de um procedimento separado.
 
-O pgAdmin é opcional, e você pode usar a instalação que já conhece. Não há necessidade de instalar um segundo PostgreSQL nativo nem o RabbitMQ nativo no Windows.
+O pgAdmin é opcional, e posso usar a instalação que já conheço. Não há necessidade de instalar um segundo PostgreSQL nativo nem o RabbitMQ nativo no Windows.
 
 **10. O Spring Initializr: ficha pronta para o próximo passo**
 
@@ -447,19 +447,19 @@ Nesse ponto, o repositório estará pronto para receber a implementação. Ele a
 
 **15. GitHub conectado, Chat, Work, Projetos e Codex**
 
-**Seu GitHub está conectado neste chat:** a identidade autenticada retornou `theonlyrafael`. Também houve leitura efetiva do protótipo. A conexão não garante acesso a todos os repositórios. O acesso ao `saga-comparative-study` ainda precisa ser resolvido, pois a consulta retornou 404. Uma conexão no ChatGPT também não configura automaticamente as credenciais do Git no seu computador.
+**Conexão com o GitHub.** Na preparação do guia, a conexão identificou minha conta como `theonlyrafael`. Também houve leitura efetiva do protótipo. A conexão não garante acesso a todos os repositórios. O acesso ao `saga-comparative-study` ainda precisa ser resolvido, pois a consulta retornou 404. Uma conexão no ChatGPT também não configura automaticamente as credenciais do Git no seu computador.
 
 | Recurso | Papel prático |
 | --- | --- |
 | Chat | Conversar, esclarecer dúvidas, planejar e revisar trechos de conteúdo |
 | ChatGPT Work | Executar tarefas de várias etapas com arquivos, ferramentas e entregáveis verificáveis |
-| Projeto do ChatGPT | Agrupar conversas, instruções e fontes de um trabalho contínuo, como sua IC |
+| Projeto do ChatGPT | Agrupar conversas, instruções e fontes de um trabalho contínuo, como minha IC |
 | Chat fora de Projeto | Conversa sem aquele conjunto de instruções e fontes compartilhadas |
 | Codex | Experiência orientada a trabalho com código, diretórios, comandos, revisão de alterações e Git |
 
 Chat e Work podem coexistir em um Projeto. Projeto organiza contexto; não é um modo alternativo de execução. No navegador, Work usa um ambiente de nuvem, sem acesso automático à pasta do seu VS Code. Acesso a arquivos locais depende de recursos e permissões específicos do aplicativo.
 
-Work e Codex têm capacidades sobrepostas. A documentação atual destaca a interface técnica do Codex, incluindo diffs, revisão e recursos de pull request quando disponíveis. No seu caso, continuar o planejamento neste Projeto e desenvolver com Codex sobre o clone aberto no VS Code é um fluxo possível.
+Work e Codex têm capacidades sobrepostas. A documentação atual destaca a interface técnica do Codex, incluindo diffs, revisão e recursos de pull request quando disponíveis. Para este estudo, continuar o planejamento neste Projeto e desenvolver com Codex sobre o clone aberto no VS Code é um fluxo possível.
 
 **É possível continuar o trabalho no Codex usando o mesmo repositório.** O caminho mais confiável é versionar a especificação, as decisões e o progresso, abrir o clone no ambiente do Codex e indicar a branch e o próximo objetivo. Não depender de que todo o histórico deste chat seja transferido automaticamente: a documentação distingue o histórico de Work do de Codex. Algumas interfaces permitem adicionar uma conversa ChatGPT a um chat Codex, mas isso depende da experiência disponível.
 

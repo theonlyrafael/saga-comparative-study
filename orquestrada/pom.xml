@@ -19,6 +19,7 @@
         <project.build.sourceEncoding>UTF-8</project.build.sourceEncoding>
     </properties>
     <modules>
+        <module>participant-messaging</module>
         <module>order-service</module>
         <module>account-service</module>
         <module>custody-service</module>

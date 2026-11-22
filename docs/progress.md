@@ -1,5 +1,17 @@
 # Progresso — Saga orquestrada
 
+## Inbox dos participantes — 21/11/2026
+
+[Versão validada da Inbox](https://github.com/theonlyrafael/saga-comparative-study/tree/fc8e9420e4)
+
+Na branch `feat/orchestrated-inbox`, conta, custódia e liquidação consomem os sete comandos v1 dos participantes. Cada serviço grava a operação na Inbox, aplica a regra de negócio e guarda a resposta na Outbox em uma única transação PostgreSQL. A reentrega de uma operação com conteúdo equivalente recupera o envelope original, inclusive quando o resultado foi uma recusa por falta de saldo ou estoque.
+
+O `clean verify` com JDK 17 executou **239 testes Java** (40 em ordens, 66 em conta, 85 em custódia e 48 em liquidação), todos aprovados. Passaram também os cinco testes Python de contrato e o teste das rotas dos 21 tipos v1 em um vhost temporário.
+
+Com PostgreSQL 17.11 e RabbitMQ 4.4.0, a suíte de conta exercitou duas entregas concorrentes, falha no commit e fechamento do canal com o ACK pendente após um commit bem-sucedido. A reserva foi aplicada uma vez em cada cenário. Após a perda do ACK, o broker reentregou o comando e o consumidor republicou a resposta com o mesmo corpo e identificador. A suíte verificou também o encaminhamento de entrada inválida para DLQ.
+
+Os testes de custódia cobrem reserva, confirmação, liberação e recusa durável. Em liquidação, um conflito com uma decisão confirmada segue para reconciliação via DLQ. O coordenador persistente, a autorização de compensações e o fluxo completo da ordem até um estado final seguem pendentes. Os passos para reproduzir a validação estão no [guia de execução local](execucao-local.md).
+
 ## Mensageria de ordens — 19/11/2026
 
 Na branch `feat/orchestrated-messaging`, as seis etapas de mensageria de ordens
@@ -131,7 +143,7 @@ concorrência funcional não equivale a medição de capacidade.
 
 Próximo PR: feature atual → `dev`, com título sugerido
 **Implementa decisão local durável de liquidação na Saga orquestrada**.
-O usuário revisa e faz o merge; depois pode excluir esta feature. Manter `dev` e
+Depois de revisar e integrar o PR, posso excluir esta branch. Manter `dev` e
 `main`. Para a próxima etapa, criar `feat/orchestrated-order-api` a partir da dev
 atualizada, preservando preço/versão do catálogo e idempotência HTTP. Usar a branch
 atual somente para ajustes desta revisão, sem acumular outra capacidade nela.
@@ -210,12 +222,12 @@ estão presentes, mas nenhum fluxo de publicação/consumo foi implementado ou t
 
 ## Limites e pendências
 
-- Windows/Git Bash, Docker Desktop e `mvnw.cmd` não foram executados neste Linux. A configuração atual usa o JDK 17.0.7 já instalado pelo autor; o protótipo não precisa mudar.
+- Windows/Git Bash, Docker Desktop e `mvnw.cmd` não foram executados neste Linux. A configuração atual usa o JDK 17.0.7 que eu já tinha instalado. O protótipo pode continuar nessa versão.
 - API, entidades, contratos implementados, migrações de negócio, consumidores, Outbox/inbox, compensações e máquina de estados permanecem fora do escopo concluído.
 - Testes de domínio, idempotência, concorrência, recuperação de Saga e cenários C1–C6 não foram executados porque dependem dessas implementações e do protocolo-base ainda não fornecido.
 - OpenTelemetry, exportação para coletor e correlação por sagaId/orderId/operationId serão integrados com os fluxos; métricas e logs estruturados atuais não comprovam tracing distribuído.
 - Uma instância PostgreSQL compartilhada isola acesso, mas não falhas entre bancos. A topologia dos experimentos exige decisão específica antes do piloto.
-- Não há merge na branch padrão. O PR será aberto manualmente pelo autor após o push da branch; sua exclusão é recomendada somente após o merge.
+- Não há merge na branch padrão. Após o push, abrirei o PR manualmente. Posso excluir a branch depois do merge.
 
 ## Próximo passo
 
@@ -228,12 +240,12 @@ A entrega inicial foi organizada em cinco commits com prefixos convencionais e a
 descrição em português. Consulte os hashes definitivos com:
 
 ```bash
-git log --reverse --format='%h %s' d3de6f99fde99dc76ec2445c73afc16e03d9a764..chore/orchestrated-bootstrap
+git log --reverse --format='%h %s' dd33c0b^1..dd33c0b^2
 ```
 
 ## Ajuste posterior — Java 17 e Spring Boot 4.1.0
 
-A pedido do autor, o parent comum passou a usar Java 17 (`release=17`) e Spring
+Defini no parent comum o uso de Java 17 (`release=17`) e Spring
 Boot 4.1.0, alinhado ao protótipo e ao JDK 17.0.7 já instalado no computador.
 O guia anexado e o PDF foram preservados; esta decisão substitui a escolha Java 21
 na configuração executável e na documentação de uso.

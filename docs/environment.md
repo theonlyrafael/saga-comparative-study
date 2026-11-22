@@ -1,6 +1,6 @@
 # Ambiente e versões verificadas
 
-Consulta às fontes oficiais e execução em 29/10/2026. Configuração ajustada posteriormente para Java 17 e Boot 4.1.0 a pedido do autor; os artefatos foram obtidos com TLS e checksums habilitados.
+Consulta às fontes oficiais e execução em 29/10/2026. Depois, escolhi Java 17 e Spring Boot 4.1.0. Os artefatos foram obtidos com TLS e checksums habilitados.
 
 | Componente | Versão fixada / verificada | Fonte |
 | --- | --- | --- |
@@ -13,7 +13,7 @@ Consulta às fontes oficiais e execução em 29/10/2026. Configuração ajustada
 
 Os [requisitos oficiais do Boot 4.1.0](https://github.com/spring-projects/spring-boot/blob/v4.1.0/documentation/spring-boot-docs/src/docs/antora/modules/ROOT/pages/system-requirements.adoc)
 exigem Java 17 ou superior e Maven 3.6.3 ou posterior. O projeto agora compila
-com `release=17`, compatível com o JDK 17.0.7 do autor. As versões de Flyway,
+com `release=17`, compatível com o JDK 17.0.7 que eu já usava. As versões de Flyway,
 Hibernate, PostgreSQL JDBC e Micrometer são gerenciadas pelo BOM do Boot 4.1.0.
 A versão SNAPSHOT identifica apenas o projeto local em desenvolvimento.
 

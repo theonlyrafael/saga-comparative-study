@@ -1,0 +1,198 @@
+package io.github.theonlyrafael.sagastudy.orchestrated.account.messaging;
+
+import com.rabbitmq.client.ConnectionFactory;
+import io.github.theonlyrafael.sagastudy.orchestrated.messaging.ParticipantConsumer;
+import java.nio.charset.StandardCharsets;
+import java.time.Duration;
+import java.util.UUID;
+import org.junit.jupiter.api.AfterEach;
+import org.junit.jupiter.api.BeforeEach;
+import org.junit.jupiter.api.Test;
+import org.springframework.amqp.core.*;
+import org.springframework.amqp.rabbit.core.RabbitAdmin;
+import org.springframework.amqp.rabbit.core.RabbitTemplate;
+import org.springframework.amqp.rabbit.listener.RabbitListenerEndpointRegistry;
+import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.boot.test.context.SpringBootTest;
+import org.springframework.jdbc.core.JdbcTemplate;
+import org.springframework.test.context.DynamicPropertyRegistry;
+import org.springframework.test.context.DynamicPropertySource;
+import tools.jackson.databind.ObjectMapper;
+import tools.jackson.databind.node.ObjectNode;
+import org.testcontainers.containers.GenericContainer;
+import org.testcontainers.containers.wait.strategy.Wait;
+import org.testcontainers.junit.jupiter.Container;
+import org.testcontainers.junit.jupiter.Testcontainers;
+import org.testcontainers.postgresql.PostgreSQLContainer;
+import org.testcontainers.utility.DockerImageName;
+
+import static org.assertj.core.api.Assertions.assertThat;
+import static org.awaitility.Awaitility.await;
+
+@Testcontainers
+@SpringBootTest(webEnvironment = SpringBootTest.WebEnvironment.NONE, properties = {
+        "spring.rabbitmq.listener.simple.auto-startup=false", "outbox.poll-interval=100ms",
+        "spring.rabbitmq.listener.simple.concurrency=2", "spring.rabbitmq.listener.simple.prefetch=1"
+})
+class AccountBrokerIntegrationTest {
+    @Container static final PostgreSQLContainer DB = new PostgreSQLContainer(DockerImageName.parse(
+            "postgres:17.11-bookworm@sha256:839fbb5a4942a7758dd93e18b42ea5649807491a0545b5eeeb8f0b8bb11857a5")
+            .asCompatibleSubstituteFor("postgres"));
+    @Container static final GenericContainer<?> BROKER = new GenericContainer<>(DockerImageName.parse(
+            "rabbitmq:4.4.0-management@sha256:af6f50d38098d8bd52fef7f3fa85015dd8b2bf6def58e995bf584ae9ba0f6407"))
+            .withEnv("RABBITMQ_DEFAULT_USER", "tester").withEnv("RABBITMQ_DEFAULT_PASS", "test-only")
+            .withExposedPorts(5672).waitingFor(Wait.forListeningPort());
+
+    @DynamicPropertySource static void connections(DynamicPropertyRegistry r) {
+        r.add("spring.datasource.url", DB::getJdbcUrl);
+        r.add("spring.datasource.username", DB::getUsername);
+        r.add("spring.datasource.password", DB::getPassword);
+        r.add("spring.rabbitmq.host", BROKER::getHost);
+        r.add("spring.rabbitmq.port", () -> BROKER.getMappedPort(5672));
+        r.add("spring.rabbitmq.username", () -> "tester");
+        r.add("spring.rabbitmq.password", () -> "test-only");
+        r.add("spring.rabbitmq.virtual-host", () -> "/");
+    }
+
+    private static final String QUEUE = "saga.v1.account";
+    private static final String COMMAND = "ReservarSaldo";
+    @Autowired ParticipantConsumer consumer;
+    @Autowired JdbcTemplate jdbc;
+    @Autowired ObjectMapper json;
+    @Autowired RabbitTemplate rabbit;
+    @Autowired RabbitListenerEndpointRegistry listeners;
+
+    private String replyQueue;
+
+    @BeforeEach
+    void prepareRoutes() {
+        var admin = new RabbitAdmin(rabbit);
+        var commands = new DirectExchange("saga.v1.commands");
+        var responses = new DirectExchange("saga.v1.responses");
+        var input = QueueBuilder.durable(QUEUE).deadLetterExchange("").deadLetterRoutingKey("bad-input").build();
+        replyQueue = "replies-" + UUID.randomUUID();
+        var output = new Queue(replyQueue);
+        admin.declareExchange(commands);
+        admin.declareExchange(responses);
+        admin.declareQueue(input);
+        admin.declareQueue(output);
+        admin.declareQueue(new Queue("bad-input"));
+        admin.declareBinding(BindingBuilder.bind(input).to(commands).with(COMMAND));
+        admin.declareBinding(BindingBuilder.bind(output).to(responses).with("SaldoReservado"));
+    }
+
+    @AfterEach
+    void stopListeners() {
+        listeners.stop();
+        new RabbitAdmin(rabbit).deleteQueue(replyQueue);
+    }
+
+    private Message fundedCommand() {
+        String buyer = UUID.randomUUID().toString();
+        jdbc.update("INSERT INTO accounts (account_id, available_balance) VALUES (?, 100)", buyer);
+        String body = """
+                {"schemaVersion":1,"type":"ReservarSaldo","messageId":"%s","operationId":"%s",
+                 "orderId":"%s","sagaId":"%s","occurredAt":"2026-11-20T00:00:00Z",
+                 "payload":{"clienteId":"%s","ativoId":"ASSET","precoUnitario":"10.00","quantidade":2,
+                            "valorTotal":"20.00","versaoCatalogo":"v1"}}
+                """.formatted(UUID.randomUUID(), UUID.randomUUID(), UUID.randomUUID(), UUID.randomUUID(), buyer);
+        return new Message(body.getBytes(StandardCharsets.UTF_8));
+    }
+
+    @Test
+    void closingChannelAfterDatabaseCommitRedeliversTheStoredReply() throws Exception {
+        var command = fundedCommand();
+        rabbit.send("saga.v1.commands", COMMAND, command);
+        await().atMost(Duration.ofSeconds(5)).until(() ->
+                new RabbitAdmin(rabbit).getQueueInfo(QUEUE).getMessageCount() == 1);
+        var factory = new ConnectionFactory();
+        factory.setHost(BROKER.getHost());
+        factory.setPort(BROKER.getMappedPort(5672));
+        factory.setUsername("tester");
+        factory.setPassword("test-only");
+        Message first;
+        try (var connection = factory.newConnection(); var channel = connection.createChannel()) {
+            var delivery = channel.basicGet(QUEUE, false);
+            assertThat(delivery).isNotNull();
+            var properties = new MessageProperties();
+            properties.setReceivedRoutingKey(delivery.getEnvelope().getRoutingKey());
+            consumer.receive(new Message(delivery.getBody(), properties));
+            first = rabbit.receive(replyQueue, 10000);
+            assertThat(first).isNotNull();
+            // Closing the channel with delivery still unacknowledged forces a broker redelivery.
+        }
+        listeners.start();
+        var replay = rabbit.receive(replyQueue, 10000);
+        assertThat(replay).isNotNull();
+        assertThat(replay.getBody()).isEqualTo(first.getBody());
+        assertThat(replay.getMessageProperties().getMessageId()).isEqualTo(first.getMessageProperties().getMessageId());
+        assertReservedOnce(command);
+        assertThat(jdbc.queryForObject("SELECT count(*) FROM outbox_messages WHERE message_id=?",
+                Integer.class, UUID.fromString(first.getMessageProperties().getMessageId()))).isOne();
+    }
+
+    @Test
+    void failedCommitIsRedeliveredByBroker() {
+        // Sequence advancement survives rollback and makes only the first commit fail.
+        jdbc.execute("CREATE SEQUENCE commit_attempt");
+        jdbc.execute("""
+                CREATE FUNCTION fail_first_commit() RETURNS trigger LANGUAGE plpgsql AS $$
+                BEGIN
+                    IF nextval('commit_attempt') = 1 THEN RAISE EXCEPTION 'injected failure'; END IF;
+                    RETURN NEW;
+                END $$
+                """);
+        jdbc.execute("""
+                CREATE CONSTRAINT TRIGGER fail_once AFTER INSERT ON outbox_messages
+                DEFERRABLE INITIALLY DEFERRED FOR EACH ROW EXECUTE FUNCTION fail_first_commit()
+                """);
+        try {
+            listeners.start();
+            var command = fundedCommand();
+            rabbit.send("saga.v1.commands", COMMAND, command);
+            var result = rabbit.receive(replyQueue, 15000);
+            assertThat(result).isNotNull();
+            assertThat(jdbc.queryForObject("SELECT last_value FROM commit_attempt", Long.class)).isEqualTo(2);
+            assertReservedOnce(command);
+        } finally {
+            jdbc.execute("DROP TRIGGER fail_once ON outbox_messages");
+            jdbc.execute("DROP FUNCTION fail_first_commit()");
+            jdbc.execute("DROP SEQUENCE commit_attempt");
+        }
+    }
+
+    private void assertReservedOnce(Message command) {
+        var body = json.readTree(command.getBody());
+        assertThat(jdbc.queryForObject("SELECT reserved_balance FROM accounts WHERE account_id=?",
+                java.math.BigDecimal.class, body.get("payload").get("clienteId").asString())).isEqualByComparingTo("20");
+        assertThat(jdbc.queryForObject("SELECT count(*) FROM balance_reservations WHERE order_id=?",
+                Integer.class, UUID.fromString(body.get("orderId").asString()))).isOne();
+    }
+
+    @Test
+    void competingListenersProcessTwoEnvelopesForTheSameOperation() {
+        var original = fundedCommand();
+        var duplicate = (ObjectNode) json.readTree(original.getBody());
+        duplicate.put("messageId", UUID.randomUUID().toString());
+        rabbit.send("saga.v1.commands", COMMAND, original);
+        rabbit.send("saga.v1.commands", COMMAND, new Message(json.writeValueAsBytes(duplicate)));
+        listeners.start();
+        var operation = UUID.fromString(duplicate.get("operationId").asString());
+        await().atMost(Duration.ofSeconds(15)).untilAsserted(() ->
+                assertThat(jdbc.queryForObject("SELECT count(*) FROM inbox_deliveries WHERE operation_id=?",
+                        Integer.class, operation)).isEqualTo(2));
+        await().atMost(Duration.ofSeconds(15)).untilAsserted(() ->
+                assertThat(jdbc.queryForObject("SELECT published_at IS NOT NULL FROM outbox_messages WHERE operation_id=?",
+                        Boolean.class, operation)).isTrue());
+        assertReservedOnce(original);
+        assertThat(rabbit.receive(replyQueue, 10000)).isNotNull();
+    }
+
+    @Test
+    void invalidInputIsDeadLettered() {
+        listeners.start();
+        var invalid = new Message("{}".getBytes(StandardCharsets.UTF_8));
+        rabbit.send("saga.v1.commands", COMMAND, invalid);
+        assertThat(rabbit.receive("bad-input", 10000)).isNotNull();
+    }
+}

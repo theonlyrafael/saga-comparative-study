@@ -1,4 +1,4 @@
-package io.github.theonlyrafael.sagastudy.orchestrated.order.messaging;
+package io.github.theonlyrafael.sagastudy.orchestrated.messaging;
 
 import java.nio.charset.StandardCharsets;
 import java.util.concurrent.ExecutionException;
@@ -11,11 +11,11 @@ import org.springframework.beans.factory.annotation.Value;
 import org.springframework.stereotype.Component;
 
 @Component
-public class OrderEventSender {
+public class ResponseSender {
     private final RabbitTemplate rabbit;
     private final long timeoutMillis;
 
-    public OrderEventSender(RabbitTemplate rabbit, @Value("${outbox.confirm-timeout-ms:5000}") long timeoutMillis) {
+    public ResponseSender(RabbitTemplate rabbit, @Value("${outbox.confirm-timeout-ms:5000}") long timeoutMillis) {
         if (timeoutMillis <= 0) throw new IllegalArgumentException("Positive confirm timeout required");
         this.rabbit = rabbit;
         this.timeoutMillis = timeoutMillis;

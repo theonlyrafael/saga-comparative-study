@@ -1,6 +1,7 @@
 package io.github.theonlyrafael.sagastudy.orchestrated.custody.application;
 
 import io.github.theonlyrafael.sagastudy.orchestrated.custody.domain.AssetReservation;
+import io.github.theonlyrafael.sagastudy.orchestrated.custody.domain.AssetReservationRefusal;
 import io.github.theonlyrafael.sagastudy.orchestrated.custody.domain.AssetReservationException;
 import io.github.theonlyrafael.sagastudy.orchestrated.custody.domain.AssetReservationStatus;
 import io.github.theonlyrafael.sagastudy.orchestrated.custody.repository.AssetReservationRepository;
@@ -44,7 +45,7 @@ public class AssetReservationService {
         this.counterpartyId = counterpartyId;
     }
 
-    @Transactional
+    @Transactional(noRollbackFor = AssetReservationRefusal.class)
     public UUID reserve(ReserveAssetCommand command) {
         Objects.requireNonNull(command, "command is required");
         var existing = reservations.findByOperationId(command.operationId());
@@ -56,7 +57,7 @@ public class AssetReservationService {
         }
 
         var source = positions.findForUpdate(counterpartyId, command.assetId())
-                .orElseThrow(() -> new AssetReservationException(POSITION_NOT_FOUND,
+                .orElseThrow(() -> new AssetReservationRefusal(POSITION_NOT_FOUND,
                         "Counterparty position was not found"));
 
         // Recheck after the source lock: another transaction may have created the reservation.
@@ -69,7 +70,7 @@ public class AssetReservationService {
                     "The order or saga already has an asset reservation");
         }
         if (positions.reserve(source.getId(), command.quantity()) != 1) {
-            throw new AssetReservationException(INSUFFICIENT_ASSETS,
+            throw new AssetReservationRefusal(INSUFFICIENT_ASSETS,
                     "The counterparty does not have enough available assets");
         }
 

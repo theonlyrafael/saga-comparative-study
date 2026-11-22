@@ -8,9 +8,11 @@
 | settlement-service | Decisão durável de liquidação | 8084 |
 | orchestrator-service | Coordenação técnica, recuperação e compensações | 8085 |
 
-Estão implementadas as reservas locais de saldo e ativos e a decisão durável de
-liquidação. Há API local de ordens com catálogo e idempotência HTTP. Ainda não há
-consumidores, Inbox ou máquina de estados distribuída. A Outbox de ordens registra OrdemRecebida no POST. As liberações locais existem; a coordenação das compensações ainda não.
+O POST de ordens registra `OrdemRecebida` na Outbox. Conta, custódia e liquidação
+consomem comandos v1 em suas filas e persistem as respostas junto aos efeitos
+locais. O módulo `participant-messaging` reúne a Inbox e o publicador das Outboxes.
+O orquestrador persistente e a coordenação das compensações são as próximas entregas.
+
 Pacotes: `io.github.theonlyrafael.sagastudy.orchestrated.<order|account|custody|settlement|orchestrator>`.
 O contrato HTTP mantém `/api/ordens`, `clienteId`, `ativoId`, `quantidade`
 e os estados e tipos de mensagens do PDF; inglês interno não altera o contrato.
@@ -18,7 +20,7 @@ e os estados e tipos de mensagens do PDF; inglês interno não altera o contrato
 ## Construção e execução
 
 Execute `./mvnw clean verify` neste diretório com JDK 17. O parent gerencia as
-versões; cada módulo gera um JAR executável em `target/`. Consulte o
+versões; cada um dos cinco serviços gera um JAR executável em `target/`. Consulte o
 [guia de execução local](../docs/execucao-local.md) para infraestrutura e execução das cinco JVMs.
 
 Flyway usa `src/main/resources/db/migration/` de cada serviço. Conta, custódia e

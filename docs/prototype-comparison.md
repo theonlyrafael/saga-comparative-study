@@ -10,7 +10,7 @@ configurações das três aplicações; classes de negócio não foram copiadas.
 | --- | --- |
 | Agregador Maven com conta, custódia e orquestrador | Manter multimódulo; incluir order e settlement, totalizando cinco aplicações |
 | Módulos com parent Boot próprio | Parent/agregador comum da modalidade, herdando Boot; plugin executável apenas nos filhos |
-| Java 17 e Boot 4.1.0 | Java 17 e Boot 4.1.0, alinhados ao protótipo por solicitação posterior do autor |
+| Java 17 e Boot 4.1.0 | Escolhi Java 17 e Spring Boot 4.1.0 para manter o alinhamento com o protótipo |
 | H2 em memória, console H2 e Hibernate `update` | PostgreSQL persistente, Flyway e Hibernate `validate` |
 | RabbitMQ por `docker run`, tag de série e usuário de exemplo | Compose, versão/digest fixos, volume, healthchecks e credenciais externas |
 | Conta oferece entrada HTTP no protótipo | Entrada futura pertence a order-service; nenhuma API de negócio nesta tarefa |

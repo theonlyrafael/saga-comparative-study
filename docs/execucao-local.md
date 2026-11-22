@@ -94,6 +94,38 @@ inválida recebe `400`; ativo desconhecido, `422`; consulta de ordem inexistente
 `404`. A chave deve ter até 128 caracteres, sem espaços nas extremidades.
 A ordem permanece `RECEBIDA` enquanto a coordenação distribuída não existir.
 
+## Testar a Inbox dos participantes
+
+Na pasta `orquestrada/`, com JDK 17 e Docker, execute:
+
+```bash
+./mvnw -pl account-service,custody-service,settlement-service -am test
+```
+
+Testcontainers cria bancos e broker próprios. A suíte de conta exercita dois
+consumidores concorrentes, uma falha no commit e a perda do ACK após commit.
+As suítes de cada participante verificam a resposta persistida e seu efeito local.
+
+Para acompanhar uma operação no ambiente Compose, conecte-se ao banco do
+participante (`accounts_db`, `custody_db` ou `settlements_db`) e, no psql,
+substitua o identificador abaixo pelo `operationId` do comando:
+
+```sql
+\set operation_id '00000000-0000-0000-0000-000000000000'
+SELECT consumer_name, message_id, processed_at
+FROM inbox_messages WHERE operation_id = :'operation_id';
+SELECT message_id, message_type, envelope, published_at
+FROM outbox_messages WHERE operation_id = :'operation_id';
+```
+
+Uma operação aceita gera uma resposta durável. Entregas com o mesmo conteúdo e
+`operationId` recolocam essa resposta na Outbox com o `messageId` original. A coluna
+`published_at` fica nula enquanto a publicação aguarda confirmação. O listener
+confirma o comando ao RabbitMQ após o commit local. Formato inválido, identificador
+reutilizado com outro conteúdo e conflito com decisão durável seguem para a DLQ
+do participante. Antes de reenviar, inspecione o envelope e a operação pela chave
+original. Falha técnica ou timeout de liquidação exige recuperação dessa decisão.
+
 ## Encerrar e retomar
 
 Use `Ctrl+C` em cada terminal de aplicação. Em seguida:
