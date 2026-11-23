@@ -33,10 +33,19 @@ public class OrderRepository {
                                         r.getBigDecimal("total"),
                                         r.getString("catalog_version"),
                                         OrderStatus.valueOf(r.getString("status")),
-                                        r.getTimestamp("created_at").toInstant()),
+                                        r.getTimestamp("created_at").toInstant(),
+                                        r.getObject("settlement_id", UUID.class),
+                                        r.getString("rejection_reason")),
                         id)
                 .stream()
                 .findFirst();
+    }
+
+    public boolean finish(UUID orderId, OrderStatus status, UUID settlementId, String reason) {
+        return jdbc.update("""
+                UPDATE orders SET status = ?, settlement_id = ?, rejection_reason = ?
+                WHERE order_id = ? AND status = 'RECEBIDA'
+                """, status.name(), settlementId, reason, orderId) == 1;
     }
 
     public void insert(UUID id, UUID saga, CreateOrderCommand command, CatalogAsset asset) {
