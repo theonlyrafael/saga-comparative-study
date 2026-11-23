@@ -84,10 +84,13 @@ contraparte de demonstração é `COUNTERPARTY`. Ela possui uma unidade de
 Cada serviço carrega somente suas próprias migrações. Mantenha o perfil nos
 reinícios dos bancos de demonstração. Os seeds preservam preços, saldos e posições
 já existentes. Use um conjunto novo de volumes para reproduzir as condições iniciais.
+Para parametrizar outro cenário, versione seus SQLs por serviço e selecione o diretório
+com `SPRING_FLYWAY_LOCATIONS=classpath:db/migration,filesystem:/caminho/do/seed`
+ao iniciar esse serviço.
 
 ## Criar e consultar uma ordem
 
-Com o catálogo demo e order-service em execução:
+Com os cinco serviços em execução e o perfil demonstrativo em ordens, conta e custódia, crie a compra e consulte seu estado.
 
 ```bash
 curl -i -X POST http://127.0.0.1:8081/api/ordens \
@@ -103,7 +106,53 @@ valor total e versão do catálogo. Reenvio com mesmo cliente/chave/conteúdo re
 a ordem original; conteúdo divergente recebe `409`. Chave ausente ou entrada
 inválida recebe `400`; ativo desconhecido, `422`; consulta de ordem inexistente,
 `404`. A chave deve ter até 128 caracteres, sem espaços nas extremidades.
-A ordem permanece `RECEBIDA` enquanto a coordenação distribuída não existir.
+O GET começa em `RECEBIDA` e passa a `LIQUIDADA` com o campo `liquidacaoId`
+após as duas efetivações. Uma recusa de saldo termina em `REJEITADA` com
+`motivo`. Repetir o POST com a mesma chave devolve o recibo 202 original,
+inclusive depois da conclusão.
+
+## Verificar a compra de ponta a ponta
+
+Use uma instância exclusiva do cenário `demo-v1` e os cinco serviços prontos.
+Execute a verificação a partir da raiz do repositório.
+
+```bash
+bash infra/scripts/check-happy-path.sh
+```
+
+O teste cria a compra do exemplo com a chave fixa `compra-exemplo-1`, aguarda o
+GET chegar a `LIQUIDADA` e repete o POST. Ele consulta cada banco com o usuário
+correspondente e verifica a correlação entre a ordem, as reservas, a liquidação
+e a Saga `CONCLUIDA`. Para essa compra única, a conta termina com 923,50
+disponíveis, zero reservado e 76,50 consumidos. A contraparte termina com sete
+unidades de `ATV002` e o comprador com três. Reexecutar a verificação recupera a
+mesma compra. Outras compras que movimentem esses recursos alteram os totais.
+
+O projeto Maven em `orquestrada/tests` executa essa verificação contra os JARs
+em execução. A suíte `clean verify` de `orquestrada/` usa Testcontainers para
+os testes de serviço. No teste externo, `ORDER_BASE_URL` configura a URL de
+ordens e `SAGA_ENV_FILE` permite indicar um arquivo local com as conexões.
+
+Para acompanhar o estado técnico, substitua o comando de inicialização do
+orquestrador pelo comando abaixo, com diagnóstico na interface de loopback. Use o `sagaId` do recibo.
+
+```bash
+SAGA_DIAGNOSTICS_ENABLED=true bash infra/scripts/run-service.sh orchestrator
+# Em outro terminal
+curl http://127.0.0.1:8085/api/sagas/SEU_SAGA_ID
+```
+
+O diagnóstico fica desativado por padrão. Quando habilitado, expõe `sagaId`, `orderId` e `estado`. O caminho com estoque
+insuficiente pode deixar uma reserva de saldo aberta e a execução em
+`RECUPERACAO_PENDENTE`. O próximo marco implementa a compensação e o reconciliador.
+
+Para reproduzir a retomada de uma execução em trânsito, pare o serviço de
+liquidação e crie outra compra com recursos disponíveis e uma chave HTTP nova.
+Aguarde `CONFIRMANDO_LIQUIDACAO` no diagnóstico, encerre o coordenador e
+reinicie liquidação e coordenador com os mesmos bancos e broker. Confira
+`LIQUIDADA` no GET da ordem e `CONCLUIDA` no diagnóstico da mesma Saga.
+Faça esse ensaio depois do teste de compra única, pois ele movimenta os recursos
+do cenário novamente.
 
 ## Testar a Inbox dos participantes
 
@@ -166,4 +215,4 @@ flowchart LR
     orchestrator --> rabbit
 ```
 
-O diagrama representa conexões de infraestrutura, não um fluxo de Saga implementado.
+Os serviços trocam comandos e respostas pelo RabbitMQ. Cada transação local usa as credenciais do banco do respectivo serviço.
