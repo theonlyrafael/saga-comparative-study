@@ -4,7 +4,7 @@ import io.github.theonlyrafael.sagastudy.orchestrated.custody.application.AssetR
 import io.github.theonlyrafael.sagastudy.orchestrated.custody.application.ReserveAssetCommand;
 import io.github.theonlyrafael.sagastudy.orchestrated.custody.domain.AssetReservationRefusal;
 import io.github.theonlyrafael.sagastudy.orchestrated.custody.domain.AssetReservationException;
-import io.github.theonlyrafael.sagastudy.orchestrated.messaging.CommandEnvelope;
+import io.github.theonlyrafael.sagastudy.orchestrated.messaging.SagaEnvelope;
 import io.github.theonlyrafael.sagastudy.orchestrated.messaging.CommandReply;
 import io.github.theonlyrafael.sagastudy.orchestrated.messaging.ParticipantHandler;
 import org.springframework.amqp.AmqpRejectAndDontRequeueException;
@@ -22,7 +22,7 @@ public class AssetCommandHandler implements ParticipantHandler {
     }
 
     @Override
-    public CommandReply handle(CommandEnvelope command) {
+    public CommandReply handle(SagaEnvelope command) {
         try {
             return switch (command.type()) {
                 case "ReservarAtivo" -> reserve(command);
@@ -35,7 +35,7 @@ public class AssetCommandHandler implements ParticipantHandler {
         }
     }
 
-    private CommandReply transition(CommandEnvelope command, boolean confirm) {
+    private CommandReply transition(SagaEnvelope command, boolean confirm) {
         var id = command.resource("reservaAtivoId");
         var snapshot = command.payload().deepCopy();
         snapshot.remove("reservaAtivoId");
@@ -58,7 +58,7 @@ public class AssetCommandHandler implements ParticipantHandler {
         return CommandReply.of(command, "ReservaAtivoDesfeita");
     }
 
-    private CommandReply reserve(CommandEnvelope command) {
+    private CommandReply reserve(SagaEnvelope command) {
         var payload = command.payload();
         try {
             var id = reservations.reserve(new ReserveAssetCommand(command.orderId(), command.sagaId(),
