@@ -1,6 +1,6 @@
 package io.github.theonlyrafael.sagastudy.orchestrated.order;
 
-import io.github.theonlyrafael.sagastudy.orchestrated.messaging.ResponseSender;
+import io.github.theonlyrafael.sagastudy.orchestrated.messaging.OutboxSender;
 import io.github.theonlyrafael.sagastudy.orchestrated.messaging.PendingMessage;
 import org.junit.jupiter.api.Test;
 import org.springframework.amqp.core.Message;
@@ -24,11 +24,21 @@ class OrderEventSenderTest {
             attempt.getFuture().complete(new CorrelationData.Confirm(false, "nack"));
             return null;
         }).when(rabbit).send(anyString(), anyString(), any(Message.class), any(CorrelationData.class));
-        assertThat(new ResponseSender(rabbit, 1000).send(event)).isFalse();
+        assertThat(new OutboxSender(rabbit, 1000, "saga.v1.responses").send(event)).isFalse();
+    }
+
+    @Test void publishesCommandsThroughTheConfiguredExchange() throws Exception {
+        var command = new PendingMessage(UUID.randomUUID(), "ReservarSaldo", "{}");
+        doAnswer(invocation -> {
+            CorrelationData attempt = invocation.getArgument(3);
+            attempt.getFuture().complete(new CorrelationData.Confirm(true, null));
+            return null;
+        }).when(rabbit).send(eq("saga.v1.commands"), eq("ReservarSaldo"), any(Message.class), any(CorrelationData.class));
+        assertThat(new OutboxSender(rabbit, 1000, "saga.v1.commands").send(command)).isTrue();
     }
 
     @Test void missingConfirmationTimesOut() {
-        assertThatThrownBy(() -> new ResponseSender(rabbit, 20).send(event))
+        assertThatThrownBy(() -> new OutboxSender(rabbit, 20, "saga.v1.responses").send(event))
                 .isInstanceOf(TimeoutException.class);
     }
 }

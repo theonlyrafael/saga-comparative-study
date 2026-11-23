@@ -1,5 +1,33 @@
 # Progresso — Saga orquestrada
 
+## Motor persistente e caminho feliz — 23/11/2026
+
+A branch `feat/orchestrated-saga-engine` integra o cenário `demo-v1`, os
+comandos do coordenador e a finalização de ordens. A ordem passa a
+`LIQUIDADA` depois da liquidação durável e das confirmações de saldo e ativo.
+O coordenador chega a `CONCLUIDA` ao receber `OrdemLiquidada`.
+
+- `clean verify` aprovou 252 testes Java (45 de ordens, 66 de conta, 85 de
+  custódia, 48 de liquidação e 8 de coordenação), sem falhas, erros ou testes
+  ignorados. A suíte verificou respostas concorrentes e divergentes, as duas
+  ordens de chegada das efetivações e o rollback ao falhar a segunda gravação
+  da Outbox. Os cinco testes de contrato e o teste das 21 rotas v1 também passaram.
+- Um teste Java externo ao reator executou a compra pelos cinco JARs com
+  PostgreSQL 17.11 e RabbitMQ 4.4.0 em um ambiente exclusivo. O GET devolveu
+  o identificador da liquidação das duas reservas. Os bancos confirmaram
+  consumo único de 76,50, crédito de três unidades ao comprador, ambas as
+  reservas efetivadas e seis etapas concluídas. O replay do POST devolveu o
+  recibo original.
+- No mesmo ambiente, uma compra de `CLI002` terminou em `REJEITADA` com
+  `SALDO_INSUFICIENTE`. Em outra compra, o serviço de liquidação foi parado
+  e o coordenador encerrado após persistir `CONFIRMANDO_LIQUIDACAO`.
+  Reiniciar as duas JVMs com os dados preservados levou a mesma ordem a
+  `LIQUIDADA` e sua Saga a `CONCLUIDA`.
+
+A próxima entrega cobre compensações com reservas abertas e reconciliação de
+operações vencidas ou de resultado desconhecido. O guia contém as instruções
+para repetir a compra e o ensaio de reinício. [Execução local](execucao-local.md)
+
 ## Inbox dos participantes — 21/11/2026
 
 [Versão validada da Inbox](https://github.com/theonlyrafael/saga-comparative-study/tree/fc8e9420e4)

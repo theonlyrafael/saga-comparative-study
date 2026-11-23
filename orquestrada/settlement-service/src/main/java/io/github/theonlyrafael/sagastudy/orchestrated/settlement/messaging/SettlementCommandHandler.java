@@ -5,7 +5,7 @@ import io.github.theonlyrafael.sagastudy.orchestrated.settlement.application.Set
 import io.github.theonlyrafael.sagastudy.orchestrated.settlement.domain.ReservedAsset;
 import io.github.theonlyrafael.sagastudy.orchestrated.settlement.domain.ReservedBalance;
 import io.github.theonlyrafael.sagastudy.orchestrated.settlement.domain.SettlementConflictException;
-import io.github.theonlyrafael.sagastudy.orchestrated.messaging.CommandEnvelope;
+import io.github.theonlyrafael.sagastudy.orchestrated.messaging.SagaEnvelope;
 import io.github.theonlyrafael.sagastudy.orchestrated.messaging.CommandReply;
 import io.github.theonlyrafael.sagastudy.orchestrated.messaging.ParticipantHandler;
 import java.math.BigDecimal;
@@ -21,7 +21,7 @@ public class SettlementCommandHandler implements ParticipantHandler {
     }
 
     @Override
-    public CommandReply handle(CommandEnvelope command) {
+    public CommandReply handle(SagaEnvelope command) {
         if (!command.type().equals("ConfirmarLiquidacao")) {
             throw new AmqpRejectAndDontRequeueException("Unexpected settlement command");
         }

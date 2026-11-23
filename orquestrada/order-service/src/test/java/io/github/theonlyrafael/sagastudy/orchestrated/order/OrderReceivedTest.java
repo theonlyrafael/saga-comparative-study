@@ -10,7 +10,7 @@ import static org.assertj.core.api.Assertions.assertThat;
 
 class OrderReceivedTest {
     private final Order order = new Order(UUID.randomUUID(), UUID.randomUUID(), "C", "A", 3,
-            new BigDecimal("0.10"), new BigDecimal("0.30"), "v1", OrderStatus.RECEBIDA, Instant.now());
+            new BigDecimal("0.10"), new BigDecimal("0.30"), "v1", OrderStatus.RECEBIDA, Instant.now(), null, null);
 
     @Test
     void capturesDecimalStringsAndCatalogVersion() {
