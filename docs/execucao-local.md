@@ -60,19 +60,30 @@ Endpoints disponíveis em **cada** porta 8081–8085:
 A API `/api/ordens` registra e consulta ordens. Sua existência e a confirmação de
 saúde não comprovam publicação/consumo de mensagens nem execução da Saga.
 
-## Catálogo demonstrativo
+## Cenário demonstrativo demo-v1
 
-O catálogo padrão começa vazio. Para carregar os ativos `ATV001` (10,00) e
-`ATV002` (25,50), versão `demo-v1`, inicie **somente order-service** com:
+Para usar os dados versionados, inicie ordens, conta e custódia com o perfil
+`demo` em três terminais, substituindo os respectivos comandos do bootstrap.
 
 ```bash
 SPRING_PROFILES_ACTIVE=demo bash infra/scripts/run-service.sh order
+SPRING_PROFILES_ACTIVE=demo bash infra/scripts/run-service.sh account
+SPRING_PROFILES_ACTIVE=demo bash infra/scripts/run-service.sh custody
 ```
 
-Use esse comando no lugar do comando normal de ordens, sem iniciar duas JVMs na
-mesma porta. O seed é repetível e não sobrescreve ativos existentes. Mantenha o
-perfil `demo` nos reinícios desse banco para preservar a validação do histórico
-Flyway. O perfil não cria saldo nem estoque; esses seeds continuam pendentes.
+Em bancos novos, `CLI001` começa com 1.000,00 e `CLI002` com 10,00. A
+contraparte de demonstração é `COUNTERPARTY`. Ela possui uma unidade de
+`ATV001` (preço 10,00) e dez de `ATV002` (preço 25,50).
+
+| Cenário em bancos novos | Cliente | Ativo | Quantidade | Condição inicial |
+| --- | --- | --- | ---: | --- |
+| Compra com recursos disponíveis | CLI001 | ATV002 | 3 | Saldo e estoque cobrem 76,50 |
+| Saldo insuficiente | CLI002 | ATV002 | 1 | Saldo menor que 25,50 |
+| Estoque insuficiente | CLI001 | ATV001 | 2 | Apenas uma unidade disponível |
+
+Cada serviço carrega somente suas próprias migrações. Mantenha o perfil nos
+reinícios dos bancos de demonstração. Os seeds preservam preços, saldos e posições
+já existentes. Use um conjunto novo de volumes para reproduzir as condições iniciais.
 
 ## Criar e consultar uma ordem
 
