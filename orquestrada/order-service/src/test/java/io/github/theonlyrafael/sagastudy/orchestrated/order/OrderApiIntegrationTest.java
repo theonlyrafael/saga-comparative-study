@@ -2,6 +2,11 @@ package io.github.theonlyrafael.sagastudy.orchestrated.order;
 
 import static org.assertj.core.api.Assertions.*;
 
+import io.github.theonlyrafael.sagastudy.orchestrated.messaging.ParticipantConsumer;
+import org.springframework.amqp.AmqpRejectAndDontRequeueException;
+import org.springframework.amqp.core.Message;
+import org.springframework.amqp.core.MessageProperties;
+import tools.jackson.databind.node.ObjectNode;
 import org.junit.jupiter.api.*;
 import org.junit.jupiter.params.ParameterizedTest;
 import org.junit.jupiter.params.provider.ValueSource;
@@ -30,6 +35,7 @@ import java.util.concurrent.*;
             "spring.rabbitmq.username=unused",
             "spring.rabbitmq.password=unused",
             "spring.rabbitmq.dynamic=false",
+            "spring.rabbitmq.listener.simple.auto-startup=false",
             "management.health.rabbit.enabled=false",
             "management.endpoint.health.group.readiness.include=db"
         })
@@ -50,6 +56,7 @@ class OrderApiIntegrationTest {
 
     @LocalServerPort int port;
     @Autowired JdbcTemplate jdbc;
+    @Autowired ParticipantConsumer inbox;
     final HttpClient http = HttpClient.newHttpClient();
     final ObjectMapper json = new ObjectMapper();
     final String body = "{\"clienteId\":\"C\",\"ativoId\":\"A\",\"quantidade\":3}";
@@ -58,6 +65,8 @@ class OrderApiIntegrationTest {
     void setup() {
         jdbc.update("DELETE FROM http_idempotency");
         jdbc.update("DELETE FROM outbox_messages");
+        jdbc.update("DELETE FROM inbox_deliveries");
+        jdbc.update("DELETE FROM inbox_messages");
         jdbc.update("DELETE FROM orders");
         jdbc.update("DELETE FROM asset_catalog");
         jdbc.update("INSERT INTO asset_catalog VALUES ('A','v1',10.00), ('B','v1',25.50)");
@@ -282,6 +291,80 @@ class OrderApiIntegrationTest {
         assertThat(post("legacy", body).body()).isEqualTo(original.body());
         assertThat(count("orders")).isEqualTo(1);
         assertThat(count("outbox_messages")).isZero();
+    }
+
+    @ParameterizedTest
+    @ValueSource(strings = {"LIQUIDADA", "REJEITADA"})
+    void finalizesOnceAndPreservesTheOriginalPostReceipt(String outcome) throws Exception {
+        var receipt = post("finish", body);
+        var command = finalization(outcome);
+        deliver(command);
+        String type = outcome.equals("LIQUIDADA") ? "OrdemLiquidada" : "OrdemRejeitada";
+        var reply = jdbc.queryForObject("SELECT envelope::text FROM outbox_messages WHERE message_type=?", String.class, type);
+        var result = json.readTree(get(receipt.headers().firstValue("Location").orElseThrow()).body());
+        assertThat(result.get("estado").asString()).isEqualTo(outcome);
+        var field = outcome.equals("LIQUIDADA") ? "liquidacaoId" : "motivo";
+        assertThat(result.get(field)).isEqualTo(command.get("payload").get(field));
+        assertThat(json.readTree(reply).get("payload").has("estado")).isFalse();
+        assertThat(post("finish", body).body()).isEqualTo(receipt.body());
+
+        deliver(command.put("messageId", UUID.randomUUID().toString()));
+        assertThat(jdbc.queryForObject("SELECT envelope::text FROM outbox_messages WHERE message_type=?", String.class, type))
+                .isEqualTo(reply);
+        command.put("messageId", UUID.randomUUID().toString());
+        command.put("operationId", UUID.randomUUID().toString());
+        assertThatThrownBy(() -> deliver(command)).isInstanceOf(AmqpRejectAndDontRequeueException.class);
+        assertThat(count("outbox_messages")).isEqualTo(2);
+    }
+
+    @Test
+    void conflictingFinalizationCannotClaimTheOrderOrItsOperation() throws Exception {
+        post("correlate", body);
+        var command = finalization("LIQUIDADA");
+        var wrongSnapshot = command.deepCopy();
+        ((ObjectNode) wrongSnapshot.get("payload")).put("versaoCatalogo", "different");
+        assertThatThrownBy(() -> deliver(wrongSnapshot)).isInstanceOf(AmqpRejectAndDontRequeueException.class);
+        assertThatThrownBy(() -> deliver(command.deepCopy().put("sagaId", UUID.randomUUID().toString())))
+                .isInstanceOf(AmqpRejectAndDontRequeueException.class);
+        assertThat(count("inbox_messages")).isZero();
+        assertThat(jdbc.queryForObject("SELECT status FROM orders", String.class)).isEqualTo("RECEBIDA");
+        deliver(command);
+        assertThat(jdbc.queryForObject("SELECT status FROM orders", String.class)).isEqualTo("LIQUIDADA");
+    }
+
+    @Test
+    void rollsBackOrderOutcomeIfReplyCannotBeRecorded() throws Exception {
+        post("rollback", body);
+        var command = finalization("LIQUIDADA");
+        jdbc.execute("ALTER TABLE outbox_messages ADD CONSTRAINT block_reply CHECK (message_type <> 'OrdemLiquidada')");
+        try {
+            assertThatThrownBy(() -> deliver(command)).isInstanceOf(org.springframework.dao.DataIntegrityViolationException.class);
+            assertThat(count("inbox_messages")).isZero();
+            assertThat(jdbc.queryForObject("SELECT status FROM orders", String.class)).isEqualTo("RECEBIDA");
+        } finally {
+            jdbc.execute("ALTER TABLE outbox_messages DROP CONSTRAINT block_reply");
+        }
+        deliver(command);
+        assertThat(count("outbox_messages")).isEqualTo(2);
+    }
+
+    private ObjectNode finalization(String outcome) {
+        var event = (ObjectNode) json.readTree(jdbc.queryForObject(
+                "SELECT envelope::text FROM outbox_messages WHERE message_type='OrdemRecebida'", String.class));
+        event.put("type", "FinalizarOrdem");
+        event.put("operationId", UUID.randomUUID().toString());
+        event.put("messageId", UUID.randomUUID().toString());
+        var payload = (ObjectNode) event.get("payload");
+        payload.put("estado", outcome);
+        if (outcome.equals("LIQUIDADA")) payload.put("liquidacaoId", UUID.randomUUID().toString());
+        else payload.put("motivo", "SALDO_INSUFICIENTE");
+        return event;
+    }
+
+    private void deliver(ObjectNode command) {
+        var properties = new MessageProperties();
+        properties.setReceivedRoutingKey("FinalizarOrdem");
+        inbox.receive(new Message(json.writeValueAsBytes(command), properties));
     }
 
     long count(String table) {

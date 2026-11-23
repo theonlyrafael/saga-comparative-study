@@ -36,7 +36,7 @@ public class OrderService {
         Objects.requireNonNull(command);
         UUID candidate = UUID.randomUUID();
         UUID claimed = keys.claim(command, candidate);
-        if (!claimed.equals(candidate)) return find(claimed);
+        if (!claimed.equals(candidate)) return find(claimed).receipt();
         var asset = catalog.find(command.ativoId()).orElseThrow(AssetNotFoundException::new);
         orders.insert(candidate, UUID.randomUUID(), command, asset);
         var created = find(candidate);

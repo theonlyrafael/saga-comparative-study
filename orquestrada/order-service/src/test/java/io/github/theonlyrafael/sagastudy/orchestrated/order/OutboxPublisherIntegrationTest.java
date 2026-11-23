@@ -32,6 +32,7 @@ import static org.awaitility.Awaitility.await;
 
 @Testcontainers
 @SpringBootTest(webEnvironment = SpringBootTest.WebEnvironment.RANDOM_PORT, properties = {
+        "spring.rabbitmq.listener.simple.auto-startup=false",
         "outbox.poll-interval=100ms", "outbox.retry-delay-ms=200", "spring.rabbitmq.connection-timeout=1s"
 })
 class OutboxPublisherIntegrationTest {

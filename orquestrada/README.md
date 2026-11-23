@@ -6,12 +6,13 @@
 | account-service | Reserva, liberação e consumo de saldo | 8082 |
 | custody-service | Reserva, liberação e efetivação de ativos | 8083 |
 | settlement-service | Decisão durável de liquidação | 8084 |
-| orchestrator-service | Coordenação técnica, recuperação e compensações | 8085 |
+| orchestrator-service | Estado e etapas da Saga, correlação das respostas e emissão de comandos | 8085 |
 
 O POST de ordens registra `OrdemRecebida` na Outbox. Conta, custódia e liquidação
 consomem comandos v1 em suas filas e persistem as respostas junto aos efeitos
 locais. O módulo `participant-messaging` reúne a Inbox e o publicador das Outboxes.
-O orquestrador persistente e a coordenação das compensações são as próximas entregas.
+O orquestrador grava cada comando junto de sua etapa. Ao receber as duas
+efetivações, envia `FinalizarOrdem`. A confirmação de ordens encerra a execução.
 
 Pacotes: `io.github.theonlyrafael.sagastudy.orchestrated.<order|account|custody|settlement|orchestrator>`.
 O contrato HTTP mantém `/api/ordens`, `clienteId`, `ativoId`, `quantidade`
@@ -25,14 +26,16 @@ versões; cada um dos cinco serviços gera um JAR executável em `target/`. Cons
 
 Flyway usa `src/main/resources/db/migration/` de cada serviço. Conta, custódia e
 liquidação possuem migrações de negócio e testes com PostgreSQL via Testcontainers.
-Ordens possui migrações de catálogo, ordens, idempotência e Outbox. Apenas o orquestrador
-ainda não tem migrações de negócio.
+Ordens também persiste o desfecho e a Inbox de finalização. No banco do orquestrador,
+`saga_instances` registra o estado e o snapshot. Cada linha de `saga_steps` guarda
+a operação emitida, o tipo de comando e a resposta aceita. Inbox e Outbox participam
+da mesma transação que a transição de estado.
 Não usar migrações vazias, `ddl-auto=create/update`, H2 ou `baseline-on-migrate`
 para mascarar diferenças de esquema.
 
 ## Validar as capacidades locais
 
-Com JDK 17 e Docker disponíveis, `./mvnw clean verify` executa as suítes de ordens, conta, custódia e liquidação e constrói os cinco JARs.
+Com JDK 17 e Docker disponíveis, `./mvnw clean verify` executa as suítes de ordens, conta, custódia, liquidação e orquestração e constrói os cinco JARs.
 Para focar na liquidação: `./mvnw -pl settlement-service -am test`.
 Pare as JVMs antes de reempacotar os JARs utilizados por elas.
 
@@ -45,3 +48,23 @@ fronteira de confiança e por que ausência/timeout isolado não autoriza compen
 
 Para testar apenas ordens: `./mvnw -pl order-service -am test`. A API e o perfil
 opcional demo estão descritos no [guia de execução local](../docs/execucao-local.md) e na [decisão 0006](../docs/decisions/0006-order-api.md).
+
+
+## Coordenação persistente
+
+A recepção de `OrdemRecebida` registra a Saga e emite `ReservarSaldo` no mesmo
+commit. O primeiro estado observável é `RESERVANDO_SALDO`. O coordenador usa o
+snapshot de ordens em toda a execução. Cada comando tem um `operationId` estável
+e um envelope persistido na Outbox para publicação em `saga.v1.commands`.
+
+Para avançar, a resposta precisa corresponder à Saga, à ordem, à operação
+pendente e aos campos enviados, incluindo os identificadores das reservas.
+Uma entrega duplicada com o mesmo conteúdo preserva a transição já concluída.
+As confirmações de saldo e ativo podem chegar em qualquer ordem. Um lock na
+instância da Saga serializa o registro dessas respostas e a criação do comando
+final. As consultas usam chaves indexadas com um número fixo de etapas por ordem.
+
+A recusa de saldo permite finalizar como rejeitada porque ainda não há reserva
+para liberar. Uma recusa com reservas abertas mantém o resultado registrado e a
+Saga em recuperação pendente. O reconciliador de prazos e a liberação em ordem
+inversa fazem parte da entrega seguinte.

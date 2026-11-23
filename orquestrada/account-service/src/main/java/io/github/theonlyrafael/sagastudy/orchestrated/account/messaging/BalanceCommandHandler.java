@@ -4,7 +4,7 @@ import io.github.theonlyrafael.sagastudy.orchestrated.account.application.Balanc
 import io.github.theonlyrafael.sagastudy.orchestrated.account.application.ReserveBalanceCommand;
 import io.github.theonlyrafael.sagastudy.orchestrated.account.domain.BalanceReservationRefusal;
 import io.github.theonlyrafael.sagastudy.orchestrated.account.domain.BalanceReservationException;
-import io.github.theonlyrafael.sagastudy.orchestrated.messaging.CommandEnvelope;
+import io.github.theonlyrafael.sagastudy.orchestrated.messaging.SagaEnvelope;
 import io.github.theonlyrafael.sagastudy.orchestrated.messaging.CommandReply;
 import io.github.theonlyrafael.sagastudy.orchestrated.messaging.ParticipantHandler;
 import java.math.BigDecimal;
@@ -23,7 +23,7 @@ public class BalanceCommandHandler implements ParticipantHandler {
     }
 
     @Override
-    public CommandReply handle(CommandEnvelope command) {
+    public CommandReply handle(SagaEnvelope command) {
         try {
             return switch (command.type()) {
                 case "ReservarSaldo" -> reserve(command);
@@ -36,7 +36,7 @@ public class BalanceCommandHandler implements ParticipantHandler {
         }
     }
 
-    private CommandReply transition(CommandEnvelope command, boolean confirm) {
+    private CommandReply transition(SagaEnvelope command, boolean confirm) {
         var id = command.resource("reservaSaldoId");
         var snapshot = command.payload().deepCopy();
         snapshot.remove("reservaSaldoId");
@@ -58,7 +58,7 @@ public class BalanceCommandHandler implements ParticipantHandler {
         return CommandReply.of(command, "ReservaSaldoDesfeita");
     }
 
-    private CommandReply reserve(CommandEnvelope command) {
+    private CommandReply reserve(SagaEnvelope command) {
         var payload = command.payload();
         try {
             var id = reservations.reserve(new ReserveBalanceCommand(command.orderId(), command.sagaId(),

@@ -13,10 +13,10 @@ import org.springframework.transaction.annotation.Transactional;
 public class OutboxDispatcher {
     private static final Logger LOG = LoggerFactory.getLogger(OutboxDispatcher.class);
     private final OutboxDeliveryStore store;
-    private final ResponseSender sender;
+    private final OutboxSender sender;
     private final long retryMillis;
 
-    public OutboxDispatcher(OutboxDeliveryStore store, ResponseSender sender,
+    public OutboxDispatcher(OutboxDeliveryStore store, OutboxSender sender,
                             @Value("${outbox.retry-delay-ms:5000}") long retryMillis) {
         if (retryMillis <= 0) throw new IllegalArgumentException("Positive retry delay required");
         this.store = store;

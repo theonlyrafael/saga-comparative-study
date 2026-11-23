@@ -1,6 +1,6 @@
 # saga-comparative-study
 
-Estudo comparativo de Sagas para a compra simulada de um ativo. O desenvolvimento está na modalidade orquestrada. Hoje, criar uma ordem gera o evento `OrdemRecebida` na fila do orquestrador. A ordem permanece `RECEBIDA` enquanto aguarda o processamento pelo futuro consumidor.
+Estudo comparativo de Sagas para a compra simulada de um ativo. O desenvolvimento está na modalidade orquestrada. O POST registra a ordem como `RECEBIDA`. Depois da liquidação e das efetivações de saldo e custódia, o GET retorna `LIQUIDADA` com o identificador da liquidação.
 
 ## Progresso da Saga orquestrada
 
@@ -31,10 +31,13 @@ Estudo comparativo de Sagas para a compra simulada de um ativo. O desenvolviment
 - [x] Validar concorrência, rollback e reentrega após commit.
 - [x] Documentar a reprodução dos testes e a consulta de respostas por operação.
 
+**Coordenação da compra**
+
+- [x] Versionar os dados de catálogo, saldo e estoque por cenário.
+- [x] Persistir o estado do orquestrador e validar o fluxo do POST até o GET da ordem `LIQUIDADA`.
+
 **Próximas entregas**
 
-- [ ] Versionar os dados de catálogo, saldo e estoque por cenário.
-- [ ] Persistir o estado do orquestrador e integrar o fluxo da ordem até `LIQUIDADA`.
 - [ ] Compensar reservas antes da liquidação e retomar efetivações pendentes após reinício.
 - [ ] Completar tracing e métricas de convergência, compensação e latência.
 - [ ] Executar os cenários C1–C6 e verificar os invariantes da Saga de ponta a ponta.
