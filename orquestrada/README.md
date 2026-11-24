@@ -67,10 +67,10 @@ final. As consultas usam chaves indexadas com um número fixo de etapas por orde
 ## Compensação e recuperação
 
 - [x] **Recusa de ativo.** Ao receber `AtivoRecusado`, o coordenador entra em `COMPENSANDO` e envia `DesfazerReservaSaldo` à conta. A resposta `ReservaSaldoDesfeita` deve identificar a mesma operação e reserva. Só então o coordenador envia `FinalizarOrdem` com o motivo original da Inbox. A Saga termina em `REJEITADA` ao receber `OrdemRejeitada`.
-- [ ] **Liquidação negada.** Com a ausência de commit comprovada, desfazer as reservas de ativo e saldo nessa ordem e aguardar as confirmações.
-- [ ] **Operações com prazo expirado.** Consultar os resultados persistidos e reenviar operações pendentes com o mesmo `operationId`.
-- [ ] **Reinício após liquidação confirmada.** Recuperar as efetivações de saldo e custódia que faltarem e concluir a ordem.
+- [x] **Liquidação negada.** O serviço de liquidação grava a decisão antes de emitir `LiquidacaoFalhou`. O coordenador libera o ativo, aguarda `ReservaAtivoDesfeita`, libera o saldo e aguarda `ReservaSaldoDesfeita`. A rejeição preserva o motivo original.
+- [x] **Operações com prazo expirado.** O reconciliador procura etapas pendentes por prazo em um índice parcial. O reenvio usa o envelope original. A Inbox do participante consulta a resposta por operação e a republica. Um comando que ainda aguarda publicação segue a agenda da Outbox.
+- [x] **Reinício após liquidação confirmada.** Cada efetivação possui uma etapa persistente. Após reinício, o coordenador recupera a resposta que falta e só finaliza a compra depois que conta e custódia confirmam.
 
-A migração V2 do orquestrador coloca na Outbox a liberação do saldo para Sagas que a versão anterior deixou em `RECUPERACAO_PENDENTE` após uma recusa registrada de ativo. A recusa de saldo continua permitindo a rejeição direta, pois nenhuma reserva foi criada.
+As migrações V2 e V3 do orquestrador retomam recusas definitivas de ativo e liquidação registradas pela versão anterior. A V4 inclui no índice de prazos as operações antigas que ainda aguardam resposta. Na liquidação, a V5 preserva as confirmações anteriores e reserva as chaves de ordem, Saga, operação e recursos para uma única decisão.
 
-Com os cinco serviços ativos no cenário `demo-v1`, execute `bash infra/scripts/check-happy-path.sh` na raiz. A suíte verifica a compra liquidada e a compra rejeitada por estoque insuficiente. [Guia de execução local](../docs/execucao-local.md#verificar-a-compra-de-ponta-a-ponta)
+Com os cinco serviços ativos no cenário `demo-v1`, execute `bash infra/scripts/check-happy-path.sh` para verificar a compra liquidada e a compra sem estoque. Para reproduzir a recusa de liquidação e o reinício com perda de resposta, execute `bash infra/scripts/check-recovery.sh` na raiz. O segundo comando inicia seus próprios serviços. [Guia de execução local](../docs/execucao-local.md#verificar-a-compensação-e-o-reinício)

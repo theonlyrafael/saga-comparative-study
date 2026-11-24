@@ -36,12 +36,12 @@ Estudo comparativo de Sagas para a compra simulada de um ativo. O desenvolviment
 - [x] Versionar os dados de catálogo, saldo e estoque por cenário.
 - [x] Persistir o estado do orquestrador e validar o fluxo do POST até o GET da ordem `LIQUIDADA`.
 
-**Compensação e recuperação · 1/4**
+**Compensação e recuperação · 4/4**
 
 - [x] Liberar o saldo após recusa de ativo e aguardar a confirmação antes de rejeitar a ordem.
-- [ ] Liberar primeiro o ativo e depois o saldo quando a liquidação for negada com ausência de commit comprovada.
-- [ ] Reconciliar operações com prazo expirado e reenviar comandos pendentes com o mesmo identificador.
-- [ ] Retomar efetivações pendentes após reinício quando a liquidação já estiver confirmada.
+- [x] Liberar primeiro o ativo e depois o saldo quando a liquidação for negada com ausência de commit comprovada.
+- [x] Reconciliar operações com prazo expirado e reenviar comandos pendentes com o mesmo identificador.
+- [x] Retomar efetivações pendentes após reinício quando a liquidação já estiver confirmada.
 
 **Próximas entregas**
 
