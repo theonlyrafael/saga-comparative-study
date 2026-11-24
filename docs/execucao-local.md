@@ -107,8 +107,9 @@ a ordem original; conteúdo divergente recebe `409`. Chave ausente ou entrada
 inválida recebe `400`; ativo desconhecido, `422`; consulta de ordem inexistente,
 `404`. A chave deve ter até 128 caracteres, sem espaços nas extremidades.
 O GET começa em `RECEBIDA` e passa a `LIQUIDADA` com o campo `liquidacaoId`
-após as duas efetivações. Uma recusa de saldo termina em `REJEITADA` com
-`motivo`. Repetir o POST com a mesma chave devolve o recibo 202 original,
+após as duas efetivações. As recusas de saldo e de ativo terminam em `REJEITADA`
+com o `motivo` original. Na recusa de ativo, a conta confirma a devolução do saldo
+antes da finalização. Repetir o POST com a mesma chave devolve o recibo 202 original,
 inclusive depois da conclusão.
 
 ## Verificar a compra de ponta a ponta
@@ -128,6 +129,11 @@ disponíveis, zero reservado e 76,50 consumidos. A contraparte termina com sete
 unidades de `ATV002` e o comprador com três. Reexecutar a verificação recupera a
 mesma compra. Outras compras que movimentem esses recursos alteram os totais.
 
+O segundo teste usa a chave `compra-sem-estoque-1` para pedir duas unidades de
+`ATV001`, que tem apenas uma disponível. O GET deve retornar `REJEITADA` com
+`ATIVO_INSUFICIENTE`. O teste confere a liberação dos 20,00 reservados, o saldo
+final igual ao anterior à compra e a ausência de reserva de ativo e de liquidação.
+
 O projeto Maven em `orquestrada/tests` executa essa verificação contra os JARs
 em execução. A suíte `clean verify` de `orquestrada/` usa Testcontainers para
 os testes de serviço. No teste externo, `ORDER_BASE_URL` configura a URL de
@@ -142,9 +148,10 @@ SAGA_DIAGNOSTICS_ENABLED=true bash infra/scripts/run-service.sh orchestrator
 curl http://127.0.0.1:8085/api/sagas/SEU_SAGA_ID
 ```
 
-O diagnóstico fica desativado por padrão. Quando habilitado, expõe `sagaId`, `orderId` e `estado`. O caminho com estoque
-insuficiente pode deixar uma reserva de saldo aberta e a execução em
-`RECUPERACAO_PENDENTE`. O próximo marco implementa a compensação e o reconciliador.
+O diagnóstico fica desativado por padrão. Quando habilitado, expõe `sagaId`,
+`orderId` e `estado`. Na recusa de ativo, a Saga fica em `COMPENSANDO` até receber
+as confirmações da conta e de ordens. Uma recusa na liquidação ainda deixa a Saga
+em `RECUPERACAO_PENDENTE` com as duas reservas abertas.
 
 Para reproduzir a retomada de uma execução em trânsito, pare o serviço de
 liquidação e crie outra compra com recursos disponíveis e uma chave HTTP nova.

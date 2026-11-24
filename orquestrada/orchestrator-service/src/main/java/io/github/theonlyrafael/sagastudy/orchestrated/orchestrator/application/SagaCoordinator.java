@@ -63,9 +63,22 @@ public class SagaCoordinator {
                 steps.issue(event, FINALIZE_ORDER, event.payload().deepCopy().put("estado", "REJEITADA"));
                 sagas.advance(event.sagaId(), COMPENSANDO);
             }
-            case "AtivoRecusado", "LiquidacaoFalhou" -> {
-                steps.complete(event, event.type().equals("AtivoRecusado") ? RESERVE_ASSET : SETTLE);
-                // The preceding reservations still need compensation before the order can be rejected.
+            case "AtivoRecusado" -> {
+                steps.complete(event, RESERVE_ASSET);
+                var release = event.payload().deepCopy();
+                release.remove("motivo");
+                steps.issue(event, RELEASE_BALANCE, release);
+                sagas.advance(event.sagaId(), COMPENSANDO);
+            }
+            case "ReservaSaldoDesfeita" -> {
+                steps.complete(event, RELEASE_BALANCE);
+                var outcome = event.snapshot().put("estado", "REJEITADA");
+                outcome.put("motivo", steps.assetRefusalReason(event.sagaId()));
+                steps.issue(event, FINALIZE_ORDER, outcome);
+            }
+            case "LiquidacaoFalhou" -> {
+                steps.complete(event, SETTLE);
+                // Both reservations still need compensation before the order can be rejected.
                 sagas.advance(event.sagaId(), RECUPERACAO_PENDENTE);
             }
             default -> throw new AmqpRejectAndDontRequeueException("Unexpected coordinator message: " + event.type());

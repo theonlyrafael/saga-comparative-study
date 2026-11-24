@@ -26,21 +26,16 @@ class OrchestratedPurchaseTest {
 
     @Test
     void onePurchaseSettlesOnceAndConservesCashAndAssets() throws Exception {
-        var receipt = purchase();
+        var receipt = purchase("compra-exemplo-1", "ATV002", 3);
         var order = UUID.fromString(receipt.get("orderId").asString());
         var saga = UUID.fromString(receipt.get("sagaId").asString());
         assertThat(receipt.get("estado").asString()).isEqualTo("RECEBIDA");
         assertThat(receipt.get("valorTotal").decimalValue()).isEqualByComparingTo("76.50");
 
-        var get = HttpRequest.newBuilder(ordersApi.resolve("/api/ordens/" + order))
-                .timeout(Duration.ofSeconds(5)).GET().build();
-        await().atMost(Duration.ofSeconds(60)).untilAsserted(() -> {
-            assertThat(status(get).get("estado").asString()).isEqualTo("LIQUIDADA");
-        });
-        var result = status(get);
+        var result = awaitOrder(order, "LIQUIDADA");
         var settlement = UUID.fromString(result.get("liquidacaoId").asString());
         assertThat(result.get("sagaId")).isEqualTo(receipt.get("sagaId"));
-        assertThat(purchase()).isEqualTo(receipt);
+        assertThat(purchase("compra-exemplo-1", "ATV002", 3)).isEqualTo(receipt);
 
         var coordinator = database("orchestrator");
         await().atMost(Duration.ofSeconds(30)).untilAsserted(() ->
@@ -67,8 +62,8 @@ class OrchestratedPurchaseTest {
                 SELECT reservation_id FROM asset_reservations WHERE order_id=? AND saga_id=?
                     AND buyer_id='CLI001' AND asset_id='ATV002' AND quantity=3 AND status='CONFIRMED'
                 """, UUID.class, order, saga);
-        assertPosition(custody, "COUNTERPARTY", 7);
-        assertPosition(custody, "CLI001", 3);
+        assertPosition(custody, "COUNTERPARTY", "ATV002", 7);
+        assertPosition(custody, "CLI001", "ATV002", 3);
         assertThat(database("settlements").queryForObject("""
                 SELECT settlement_id FROM settlements WHERE order_id=? AND saga_id=?
                     AND balance_reservation_id=? AND asset_reservation_id=? AND status='CONFIRMED'
@@ -76,18 +71,58 @@ class OrchestratedPurchaseTest {
                 """, UUID.class, order, saga, balance, asset)).isEqualTo(settlement);
     }
 
-    private JsonNode purchase() throws Exception {
+    @Test
+    void insufficientStockReturnsTheReservedCashAndRejectsTheOrder() throws Exception {
+        var accounts = database("accounts");
+        String balances = "SELECT available_balance, reserved_balance, total_consumed FROM accounts WHERE account_id='CLI001'";
+        var before = accounts.queryForMap(balances);
+        String key = "compra-sem-estoque-1";
+        var receipt = purchase(key, "ATV001", 2);
+        var order = UUID.fromString(receipt.get("orderId").asString());
+        var saga = UUID.fromString(receipt.get("sagaId").asString());
+
+        var result = awaitOrder(order, "REJEITADA");
+        assertThat(result.get("motivo").asString()).isEqualTo("ATIVO_INSUFICIENTE");
+        assertThat(purchase(key, "ATV001", 2)).isEqualTo(receipt);
+        var coordinator = database("orchestrator");
+        await().atMost(Duration.ofSeconds(30)).untilAsserted(() ->
+                assertThat(coordinator.queryForObject("SELECT state FROM saga_instances WHERE saga_id=? AND order_id=?",
+                        String.class, saga, order)).isEqualTo("REJEITADA"));
+        assertThat(coordinator.queryForList("""
+                SELECT response_type FROM saga_steps WHERE saga_id=?
+                """, String.class, saga)).containsExactlyInAnyOrder(
+                "SaldoReservado", "AtivoRecusado", "ReservaSaldoDesfeita", "OrdemRejeitada");
+
+        assertThat(accounts.queryForObject("""
+                SELECT status FROM balance_reservations WHERE order_id=? AND saga_id=? AND amount=20.00
+                """, String.class, order, saga)).isEqualTo("RELEASED");
+        assertThat(accounts.queryForMap(balances)).isEqualTo(before);
+        var custody = database("custody");
+        assertThat(custody.queryForObject("SELECT count(*) FROM asset_reservations WHERE order_id=?",
+                Integer.class, order)).isZero();
+        assertPosition(custody, "COUNTERPARTY", "ATV001", 1);
+        assertThat(database("settlements").queryForObject("SELECT count(*) FROM settlements WHERE order_id=?",
+                Integer.class, order)).isZero();
+    }
+
+    private JsonNode purchase(String key, String asset, int quantity) throws Exception {
+        var body = json.createObjectNode().put("clienteId", "CLI001").put("ativoId", asset).put("quantidade", quantity);
         var request = HttpRequest.newBuilder(ordersApi).timeout(Duration.ofSeconds(10))
                 .header("Content-Type", "application/json")
-                .header("Idempotency-Key", "compra-exemplo-1")
-                .POST(HttpRequest.BodyPublishers.ofString("""
-                        {"clienteId":"CLI001","ativoId":"ATV002","quantidade":3}
-                        """)).build();
+                .header("Idempotency-Key", key)
+                .POST(HttpRequest.BodyPublishers.ofString(body.toString())).build();
         var response = http.send(request, HttpResponse.BodyHandlers.ofString());
         assertThat(response.statusCode()).isEqualTo(202);
         var receipt = json.readTree(response.body());
         assertThat(response.headers().firstValue("Location")).contains("/api/ordens/" + receipt.get("orderId").asString());
         return receipt;
+    }
+
+    private JsonNode awaitOrder(UUID order, String state) {
+        var get = HttpRequest.newBuilder(ordersApi.resolve("/api/ordens/" + order))
+                .timeout(Duration.ofSeconds(5)).GET().build();
+        return await().atMost(Duration.ofSeconds(60)).until(() -> status(get),
+                result -> state.equals(result.get("estado").asString()));
     }
 
     private JsonNode status(HttpRequest get) throws Exception {
@@ -96,8 +131,8 @@ class OrchestratedPurchaseTest {
         return json.readTree(response.body());
     }
 
-    private static void assertPosition(JdbcTemplate custody, String owner, long available) {
-        var row = custody.queryForMap("SELECT * FROM positions WHERE owner_id=? AND asset_id='ATV002'", owner);
+    private static void assertPosition(JdbcTemplate custody, String owner, String asset, long available) {
+        var row = custody.queryForMap("SELECT * FROM positions WHERE owner_id=? AND asset_id=?", owner, asset);
         assertThat(row.get("available_quantity")).isEqualTo(available);
         assertThat(row.get("reserved_quantity")).isEqualTo(0L);
     }

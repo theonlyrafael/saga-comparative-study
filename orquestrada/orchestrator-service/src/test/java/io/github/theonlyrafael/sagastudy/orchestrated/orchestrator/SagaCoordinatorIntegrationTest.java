@@ -15,8 +15,10 @@ import org.springframework.amqp.core.Message;
 import org.springframework.amqp.core.MessageProperties;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.test.context.SpringBootTest;
+import org.springframework.core.io.ClassPathResource;
 import org.springframework.dao.DataIntegrityViolationException;
 import org.springframework.jdbc.core.JdbcTemplate;
+import org.springframework.jdbc.datasource.init.ResourceDatabasePopulator;
 import org.springframework.test.context.DynamicPropertyRegistry;
 import org.springframework.test.context.DynamicPropertySource;
 import org.testcontainers.junit.jupiter.Container;
@@ -169,22 +171,79 @@ class SagaCoordinatorIntegrationTest {
     }
 
     @ParameterizedTest
-    @ValueSource(booleans = {false, true})
-    void refusalWithOpenReservationsLeavesANonterminalSaga(boolean settlementRefused) {
-        ObjectNode refusal;
-        if (settlementRefused) {
-            refusal = settlementDecision().put("type", "LiquidacaoFalhou");
-            payload(refusal).remove("liquidacaoId");
-            payload(refusal).put("motivo", "LIQUIDACAO_NEGADA");
-        } else {
-            reserveBalance();
-            refusal = reply("ReservarAtivo", "AtivoRecusado");
-            payload(refusal).put("motivo", "ATIVO_INSUFICIENTE");
-        }
-        deliver(refusal);
-        deliver(refusal);
-        assertState("RECUPERACAO_PENDENTE");
+    @ValueSource(strings = {"ATIVO_INSUFICIENTE", "POSICAO_INEXISTENTE"})
+    void rejectsOnlyAfterReleasingTheReservedBalance(String reason) throws Exception {
+        reserveBalance();
+        var refusal = reply("ReservarAtivo", "AtivoRecusado");
+        payload(refusal).put("motivo", reason);
+        concurrently(refusal, refusal.deepCopy().put("messageId", UUID.randomUUID().toString()));
+        assertState("COMPENSANDO");
+        assertThat(stepCount("ConfirmarLiquidacao")).isZero();
+        assertThat(stepCount("DesfazerReservaAtivo")).isZero();
         assertThat(stepCount("FinalizarOrdem")).isZero();
+
+        var released = reply("DesfazerReservaSaldo", "ReservaSaldoDesfeita");
+        assertThat(payload(released).get("reservaSaldoId")).isEqualTo(payload(refusal).get("reservaSaldoId"));
+        var wrongReservation = released.deepCopy();
+        resource(wrongReservation, "reservaSaldoId");
+        reject(wrongReservation);
+        assertThat(stepCount("FinalizarOrdem")).isZero();
+
+        concurrently(released, released.deepCopy().put("messageId", UUID.randomUUID().toString()));
+        var ack = reply("FinalizarOrdem", "OrdemRejeitada");
+        assertThat(payload(ack).get("motivo").asString()).isEqualTo(reason);
+        assertState("COMPENSANDO");
+        deliver(ack);
+        assertState("REJEITADA");
+        assertThat(stepCount("DesfazerReservaSaldo")).isOne();
+        assertThat(stepCount("FinalizarOrdem")).isOne();
+    }
+
+    @Test
+    void settlementFailureStillRequiresRecoveryOfBothReservations() {
+        var refusal = settlementDecision().put("type", "LiquidacaoFalhou");
+        payload(refusal).remove("liquidacaoId");
+        payload(refusal).put("motivo", "LIQUIDACAO_NEGADA");
+        deliver(refusal);
+        deliver(refusal);
+        applyRecoveryMigration();
+        assertState("RECUPERACAO_PENDENTE");
+        assertThat(stepCount("DesfazerReservaSaldo")).isZero();
+        assertThat(stepCount("FinalizarOrdem")).isZero();
+    }
+
+    @Test
+    void migrationResumesAnAssetRefusalAlreadyRecordedByThePreviousCoordinator() {
+        reserveBalance();
+        var refusal = reply("ReservarAtivo", "AtivoRecusado");
+        payload(refusal).put("motivo", "ATIVO_INSUFICIENTE");
+        // Reproduce the committed V1 state, including the receipt that prevents redelivery from advancing it.
+        var operation = UUID.fromString(refusal.get("operationId").asString());
+        var content = refusal.deepCopy();
+        content.remove("messageId");
+        content.remove("occurredAt");
+        jdbc.update("INSERT INTO inbox_operations (operation_id, saga_id, content) VALUES (?, ?, ?::jsonb)",
+                operation, sagaId, content.toString());
+        jdbc.update("INSERT INTO inbox_deliveries (message_id, operation_id) VALUES (?, ?)",
+                UUID.fromString(refusal.get("messageId").asString()), operation);
+        jdbc.update("UPDATE saga_steps SET response_type='AtivoRecusado', completed_at=now() WHERE operation_id=?", operation);
+        jdbc.update("UPDATE saga_instances SET state='RECUPERACAO_PENDENTE' WHERE saga_id=?", sagaId);
+
+        applyRecoveryMigration();
+        assertState("COMPENSANDO");
+        deliver(refusal);
+        var released = reply("DesfazerReservaSaldo", "ReservaSaldoDesfeita");
+        assertThat(payload(released).get("reservaSaldoId")).isEqualTo(payload(refusal).get("reservaSaldoId"));
+        deliver(released);
+        var ack = reply("FinalizarOrdem", "OrdemRejeitada");
+        assertThat(payload(ack).get("motivo").asString()).isEqualTo("ATIVO_INSUFICIENTE");
+        deliver(ack);
+        assertState("REJEITADA");
+    }
+
+    private void applyRecoveryMigration() {
+        var migration = new ClassPathResource("db/migration/V2__resume_refused_asset_reservations.sql");
+        new ResourceDatabasePopulator(migration).execute(jdbc.getDataSource());
     }
 
     private void reserveBalance() {
