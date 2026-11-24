@@ -64,7 +64,13 @@ As confirmações de saldo e ativo podem chegar em qualquer ordem. Um lock na
 instância da Saga serializa o registro dessas respostas e a criação do comando
 final. As consultas usam chaves indexadas com um número fixo de etapas por ordem.
 
-A recusa de saldo permite finalizar como rejeitada porque ainda não há reserva
-para liberar. Uma recusa com reservas abertas mantém o resultado registrado e a
-Saga em recuperação pendente. O reconciliador de prazos e a liberação em ordem
-inversa fazem parte da entrega seguinte.
+## Compensação e recuperação
+
+- [x] **Recusa de ativo.** Ao receber `AtivoRecusado`, o coordenador entra em `COMPENSANDO` e envia `DesfazerReservaSaldo` à conta. A resposta `ReservaSaldoDesfeita` deve identificar a mesma operação e reserva. Só então o coordenador envia `FinalizarOrdem` com o motivo original da Inbox. A Saga termina em `REJEITADA` ao receber `OrdemRejeitada`.
+- [ ] **Liquidação negada.** Com a ausência de commit comprovada, desfazer as reservas de ativo e saldo nessa ordem e aguardar as confirmações.
+- [ ] **Operações com prazo expirado.** Consultar os resultados persistidos e reenviar operações pendentes com o mesmo `operationId`.
+- [ ] **Reinício após liquidação confirmada.** Recuperar as efetivações de saldo e custódia que faltarem e concluir a ordem.
+
+A migração V2 do orquestrador coloca na Outbox a liberação do saldo para Sagas que a versão anterior deixou em `RECUPERACAO_PENDENTE` após uma recusa registrada de ativo. A recusa de saldo continua permitindo a rejeição direta, pois nenhuma reserva foi criada.
+
+Com os cinco serviços ativos no cenário `demo-v1`, execute `bash infra/scripts/check-happy-path.sh` na raiz. A suíte verifica a compra liquidada e a compra rejeitada por estoque insuficiente. [Guia de execução local](../docs/execucao-local.md#verificar-a-compra-de-ponta-a-ponta)
