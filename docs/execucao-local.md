@@ -150,8 +150,8 @@ curl http://127.0.0.1:8085/api/sagas/SEU_SAGA_ID
 
 O diagnóstico fica desativado por padrão. Quando habilitado, expõe `sagaId`,
 `orderId` e `estado`. Na recusa de ativo, a Saga fica em `COMPENSANDO` até receber
-as confirmações da conta e de ordens. Uma recusa na liquidação ainda deixa a Saga
-em `RECUPERACAO_PENDENTE` com as duas reservas abertas.
+as confirmações da conta e de ordens. Na recusa definitiva de liquidação, ela
+aguarda primeiro a liberação do ativo e depois a do saldo.
 
 Para reproduzir a retomada de uma execução em trânsito, pare o serviço de
 liquidação e crie outra compra com recursos disponíveis e uma chave HTTP nova.
@@ -160,6 +160,54 @@ reinicie liquidação e coordenador com os mesmos bancos e broker. Confira
 `LIQUIDADA` no GET da ordem e `CONCLUIDA` no diagnóstico da mesma Saga.
 Faça esse ensaio depois do teste de compra única, pois ele movimenta os recursos
 do cenário novamente.
+
+## Verificar a compensação e o reinício
+
+Na raiz, com os cinco JARs construídos, Docker Compose, Bash 4+, curl, jq, Python 3
+e o arquivo local `infra/.env` preparado, execute:
+
+```bash
+bash infra/scripts/check-recovery.sh
+```
+
+O script cria um projeto Compose exclusivo, com volumes novos e portas
+automáticas, e inicia os JARs localmente. Ao sair, encerra essas JVMs e remove
+o projeto de teste. O cenário usa uma unidade de `ATV002` a 25,50.
+
+1. A liquidação fica desligada até a ordem ter as duas reservas. Ao iniciar,
+   `SETTLEMENT_SIMULATION_DENY_ORDER_ID` seleciona aquela ordem para uma recusa
+   explícita. O serviço grava `DENIED` e a resposta na mesma transação. A Saga libera
+   ativo e saldo, nessa ordem. O teste confere as duas reservas liberadas, os totais
+   originais e o GET com `REJEITADA` e `LIQUIDACAO_NEGADA`.
+2. Em outra compra, a liquidação confirma e a conta efetiva o saldo. O teste encerra
+   a JVM do coordenador com `SIGKILL`, retoma a custódia e descarta no broker de
+   teste a resposta de ativo já publicada. Depois do reinício, o reconciliador
+   reenvia o comando da etapa pendente. A Inbox de custódia devolve a resposta
+   original. O teste verifica uma única liquidação, uma unidade transferida, 25,50
+   consumidos e a ordem `LIQUIDADA`.
+
+A opção de simulação fica vazia por padrão. A primeira decisão commitada prevalece
+mesmo quando o processo reinicia com outra configuração. O registro `DENIED` fica
+em `settlement_decisions`; a tabela `settlements` continua contendo apenas liquidações
+confirmadas. Falhas técnicas preservam a operação para nova tentativa.
+
+### Prazos do reconciliador
+
+| Propriedade | Padrão local | Uso |
+| --- | --- | --- |
+| `saga.timeout.step` | `30s` | Janela para receber resposta após publicação |
+| `saga.retry.max-attempts` | `5` | Reenvios antes de sinalizar recuperação pendente |
+| `saga.retry.initial-delay` | `1s` | Espera adicional após o primeiro reenvio |
+| `saga.retry.max-delay` | `1m` | Limite da espera adicional |
+| `reconciliation.poll-interval` | `5s` | Intervalo entre varreduras |
+| `reconciliation.batch-size` | `32` | Máximo de etapas por varredura e instância |
+
+Cada tentativa usa o mesmo `operationId`, `messageId`, ordem e Saga. A espera
+adicional dobra até o limite. Ao atingir o número configurado de reenvios,
+a Saga entra em `RECUPERACAO_PENDENTE` e continua a consultar a operação com
+a espera máxima. Uma resposta válida permite avançar. O prazo vencido sozinho
+nunca dispara liberação de recursos. Os valores da tabela são padrões de
+desenvolvimento e a calibração de carga faz parte do piloto.
 
 ## Testar a Inbox dos participantes
 

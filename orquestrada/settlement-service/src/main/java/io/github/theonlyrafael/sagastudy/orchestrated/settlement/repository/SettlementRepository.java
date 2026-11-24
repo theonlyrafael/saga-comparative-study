@@ -4,15 +4,16 @@ import io.github.theonlyrafael.sagastudy.orchestrated.settlement.application.Con
 import io.github.theonlyrafael.sagastudy.orchestrated.settlement.application.Settlement;
 import io.github.theonlyrafael.sagastudy.orchestrated.settlement.domain.ReservedAsset;
 import io.github.theonlyrafael.sagastudy.orchestrated.settlement.domain.ReservedBalance;
-import org.springframework.jdbc.core.JdbcTemplate;
-import org.springframework.stereotype.Repository;
-import org.springframework.transaction.annotation.Propagation;
-import org.springframework.transaction.annotation.Transactional;
+import io.github.theonlyrafael.sagastudy.orchestrated.settlement.domain.SettlementConflictException;
 import java.sql.ResultSet;
 import java.sql.SQLException;
 import java.util.Objects;
 import java.util.Optional;
 import java.util.UUID;
+import org.springframework.jdbc.core.JdbcTemplate;
+import org.springframework.stereotype.Repository;
+import org.springframework.transaction.annotation.Propagation;
+import org.springframework.transaction.annotation.Transactional;
 
 /** No update/delete operation: a committed decision is irreversible through this interface. */
 @Repository
@@ -22,6 +23,24 @@ public class SettlementRepository {
 
     public SettlementRepository(JdbcTemplate jdbc) {
         this.jdbc = jdbc;
+    }
+
+    /** An exact replay observes the first committed outcome, even after the simulator is restarted. */
+    public boolean admit(ConfirmSettlementCommand command, boolean requestDenial) {
+        var balance = command.balance();
+        var assetId = command.asset().reservationId();
+        jdbc.update("""
+                INSERT INTO settlement_decisions
+                    (order_id, saga_id, operation_id, balance_reservation_id, asset_reservation_id, outcome)
+                VALUES (?, ?, ?, ?, ?, ?) ON CONFLICT DO NOTHING
+                """, balance.orderId(), balance.sagaId(), command.operationId(), balance.reservationId(),
+                assetId, requestDenial ? "DENIED" : "CONFIRMED");
+        return jdbc.query("""
+                SELECT outcome FROM settlement_decisions WHERE order_id=? AND saga_id=? AND operation_id=?
+                    AND balance_reservation_id=? AND asset_reservation_id=?
+                """, (row, index) -> row.getString(1).equals("CONFIRMED"), balance.orderId(), balance.sagaId(),
+                command.operationId(), balance.reservationId(), assetId).stream().findFirst()
+                .orElseThrow(SettlementConflictException::new);
     }
 
     /** Unique indexes arbitrate simultaneous commands; no exception/retry transaction is needed for duplicates. */

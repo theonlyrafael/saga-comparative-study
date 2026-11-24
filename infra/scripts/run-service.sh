@@ -10,9 +10,10 @@ case "$service" in
     orchestrator) password_var=ORCHESTRATOR_DB_PASSWORD ;;
     *) echo 'Uso: bash infra/scripts/run-service.sh {order|account|custody|settlement|orchestrator}' >&2; exit 2 ;;
 esac
-[[ -f "$repo_dir/infra/.env" ]] || { echo 'Prepare infra/.env primeiro.' >&2; exit 1; }
+env_file="${SAGA_ENV_FILE:-$repo_dir/infra/.env}"
+[[ -f "$env_file" ]] || { echo 'Prepare infra/.env primeiro.' >&2; exit 1; }
 # Arquivo local confiável, compatível com Bash e Compose; nunca usar set -x.
-source "$repo_dir/infra/.env"
+source "$env_file"
 export DB_PASSWORD="${!password_var:?Senha do banco não definida}"
 [[ "$DB_PASSWORD" != CHANGE_ME* && "${RABBITMQ_PASSWORD:?}" != CHANGE_ME* ]] || {
     echo 'Substitua as senhas de exemplo em infra/.env.' >&2; exit 1;

@@ -45,12 +45,15 @@ public class SagaSteps {
         if (updated != 1) throw new AmqpRejectAndDontRequeueException("Reply does not match the issued command");
     }
 
-    public String assetRefusalReason(UUID sagaId) {
+    public record Refusal(String reason, UUID balanceReservationId) {}
+
+    public Refusal refusal(UUID sagaId) {
         return jdbc.queryForObject("""
-                SELECT i.content->'payload'->>'motivo'
+                SELECT i.content->'payload'->>'motivo', (i.content->'payload'->>'reservaSaldoId')::uuid
                 FROM saga_steps s JOIN inbox_operations i USING (operation_id)
-                WHERE s.saga_id=? AND s.command_type='ReservarAtivo' AND s.response_type='AtivoRecusado'
-                """, String.class, sagaId);
+                WHERE s.saga_id=? AND ((s.command_type='ReservarAtivo' AND s.response_type='AtivoRecusado')
+                    OR (s.command_type='ConfirmarLiquidacao' AND s.response_type='LiquidacaoFalhou'))
+                """, (row, index) -> new Refusal(row.getString(1), row.getObject(2, UUID.class)), sagaId);
     }
 
     public boolean bothEffectsConfirmed(UUID sagaId) {
