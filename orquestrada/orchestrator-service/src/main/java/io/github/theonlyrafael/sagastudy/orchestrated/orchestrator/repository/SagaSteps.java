@@ -2,6 +2,7 @@ package io.github.theonlyrafael.sagastudy.orchestrated.orchestrator.repository;
 
 import io.github.theonlyrafael.sagastudy.orchestrated.messaging.SagaEnvelope;
 import io.github.theonlyrafael.sagastudy.orchestrated.orchestrator.domain.SagaStep;
+import io.github.theonlyrafael.sagastudy.orchestrated.messaging.SagaTracing;
 import java.util.UUID;
 import org.springframework.amqp.AmqpRejectAndDontRequeueException;
 import org.springframework.jdbc.core.JdbcTemplate;
@@ -26,8 +27,8 @@ public class SagaSteps {
         jdbc.update("INSERT INTO saga_steps (operation_id, saga_id, command_type) VALUES (?, ?, ?)",
                 operationId, cause.sagaId(), step.commandType());
         jdbc.update("""
-                INSERT INTO outbox_messages (message_id, operation_id, message_type, envelope) VALUES (?, ?, ?, ?::jsonb)
-                """, messageId, operationId, step.commandType(), envelope.toString());
+                INSERT INTO outbox_messages (message_id, operation_id, message_type, envelope, traceparent) VALUES (?, ?, ?, ?::jsonb, ?)
+                """, messageId, operationId, step.commandType(), envelope.toString(), SagaTracing.currentParent());
     }
 
     /** Accept only a reply to the pending command, with every issued resource and snapshot value intact. */

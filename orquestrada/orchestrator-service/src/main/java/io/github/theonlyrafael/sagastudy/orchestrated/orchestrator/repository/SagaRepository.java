@@ -22,9 +22,9 @@ public class SagaRepository {
 
     public void start(SagaEnvelope event) {
         int inserted = jdbc.update("""
-                INSERT INTO saga_instances (saga_id, order_id, state, snapshot)
-                VALUES (?, ?, 'RESERVANDO_SALDO', ?::jsonb) ON CONFLICT DO NOTHING
-                """, event.sagaId(), event.orderId(), event.snapshot().toString());
+                INSERT INTO saga_instances (saga_id, order_id, state, snapshot, order_received_at)
+                VALUES (?, ?, 'RESERVANDO_SALDO', ?::jsonb, ?) ON CONFLICT DO NOTHING
+                """, event.sagaId(), event.orderId(), event.snapshot().toString(), java.sql.Timestamp.from(event.occurredAt()));
         if (inserted != 1) throw new AmqpRejectAndDontRequeueException("Order or Saga already started");
     }
 

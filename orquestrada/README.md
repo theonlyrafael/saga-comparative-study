@@ -74,3 +74,11 @@ final. As consultas usam chaves indexadas com um número fixo de etapas por orde
 As migrações V2 e V3 do orquestrador retomam recusas definitivas de ativo e liquidação registradas pela versão anterior. A V4 inclui no índice de prazos as operações antigas que ainda aguardam resposta. Na liquidação, a V5 preserva as confirmações anteriores e reserva as chaves de ordem, Saga, operação e recursos para uma única decisão.
 
 Com os cinco serviços ativos no cenário `demo-v1`, execute `bash infra/scripts/check-happy-path.sh` para verificar a compra liquidada e a compra sem estoque. Para reproduzir a recusa de liquidação e o reinício com perda de resposta, execute `bash infra/scripts/check-recovery.sh` na raiz. O segundo comando inicia seus próprios serviços. [Guia de execução local](../docs/execucao-local.md#verificar-a-compensação-e-o-reinício)
+
+## Observabilidade
+
+- [x] Correlacionar o POST e os consumidores RabbitMQ nos cinco serviços com OpenTelemetry.
+- [x] Expor os histogramas de latência, compensação e convergência e preservar as medições por ordem em PostgreSQL.
+- [x] Validar traces e medições nos ensaios de recusa e reinício.
+
+[Executar Jaeger e Prometheus e consultar uma Saga](../docs/observabilidade.md)

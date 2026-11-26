@@ -14,14 +14,16 @@ import org.springframework.transaction.annotation.Transactional;
 @ConditionalOnProperty("inbox.queue")
 public class ParticipantConsumer {
     private final JdbcTemplate jdbc;
+    private final SagaTracing tracing;
     private final EnvelopeReader reader;
     private final ParticipantHandler handler;
     private final ReplyOutbox outbox;
     private final String consumer;
 
-    public ParticipantConsumer(JdbcTemplate jdbc, EnvelopeReader reader, ParticipantHandler handler,
+    public ParticipantConsumer(JdbcTemplate jdbc, SagaTracing tracing, EnvelopeReader reader, ParticipantHandler handler,
                                ReplyOutbox outbox, @Value("${inbox.queue}") String consumer) {
         this.jdbc = jdbc;
+        this.tracing = tracing;
         this.reader = reader;
         this.handler = handler;
         this.outbox = outbox;
@@ -32,6 +34,10 @@ public class ParticipantConsumer {
     @RabbitListener(queues = "${inbox.queue}")
     public void receive(Message delivery) {
         var command = reader.read(delivery);
+        tracing.consume(delivery, command, () -> process(command));
+    }
+
+    private void process(SagaEnvelope command) {
         int inserted = jdbc.update("""
                 INSERT INTO inbox_messages (consumer_name, message_id, operation_id)
                 VALUES (?, ?, ?) ON CONFLICT DO NOTHING

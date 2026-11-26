@@ -16,7 +16,7 @@ import static org.mockito.Mockito.*;
 
 class OrderEventSenderTest {
     private final RabbitTemplate rabbit = mock(RabbitTemplate.class);
-    private final PendingMessage event = new PendingMessage(UUID.randomUUID(), "OrdemRecebida", "{}");
+    private final PendingMessage event = new PendingMessage(UUID.randomUUID(), "OrdemRecebida", "{}", null);
 
     @Test void nackDoesNotConfirmDelivery() throws Exception {
         doAnswer(invocation -> {
@@ -28,7 +28,7 @@ class OrderEventSenderTest {
     }
 
     @Test void publishesCommandsThroughTheConfiguredExchange() throws Exception {
-        var command = new PendingMessage(UUID.randomUUID(), "ReservarSaldo", "{}");
+        var command = new PendingMessage(UUID.randomUUID(), "ReservarSaldo", "{}", null);
         doAnswer(invocation -> {
             CorrelationData attempt = invocation.getArgument(3);
             attempt.getFuture().complete(new CorrelationData.Confirm(true, null));
