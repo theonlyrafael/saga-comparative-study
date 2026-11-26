@@ -47,9 +47,9 @@ Estudo comparativo de Sagas para a compra simulada de um ativo. O desenvolviment
 
 - [x] Rastrear a ordem nos cinco serviços e medir latência, compensação e convergência.
 
-**Próximas entregas**
+**Validação de ponta a ponta**
 
-- [ ] Executar os cenários C1–C6 e verificar os invariantes da Saga de ponta a ponta.
+- [x] Executar os seis cenários de falha e conferir ordens, saldo, custódia, liquidação e Saga. [Resultados C1–C6](docs/cenarios-de-falha.md)
 - [ ] Executar o piloto com carga e configurações reproduzíveis.
 
 A modalidade coreografada está prevista para depois da validação da orquestrada.
