@@ -378,7 +378,7 @@ Pontos que a organização deve permitir implementar depois:
 - Ordem concluída somente após efetivação de conta e custódia e confirmação da atualização final de ordens.
 - Logs com identificadores, saúde, métricas e tracing.
 
-O PDF cita o protocolo-base e cenários C1–C6, mas o protocolo-base completo não foi fornecido nesta solicitação. É possível preparar o ambiente com o anexo atual. Para reproduzir a numeração e os detalhes exatos dos cenários experimentais, será necessário consultar esse protocolo quando chegarmos à etapa de testes de falha.
+Na preparação inicial, a especificação remetia ao protocolo-base C1–C6. A validação funcional usa os seis tipos enumerados na seção 3.5 do plano de trabalho e os critérios da seção 12 da especificação. Os pontos de injeção, as condições de retomada e os comandos para reproduzir cada caso estão no [guia dos cenários de falha](cenarios-de-falha.md).
 
 **13. Fazer o primeiro commit e abrir o pull request**
 

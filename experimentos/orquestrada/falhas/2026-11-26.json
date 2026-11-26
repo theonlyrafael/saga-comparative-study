@@ -1,0 +1,434 @@
+{
+  "revision": "96491b776038a590725e4bded1a6d64290f8c2d8",
+  "startedUTC": "2026-11-26T05:59:35Z",
+  "finishedUTC": "2026-11-26T06:03:16Z",
+  "seed": "demo-v1",
+  "runtime": {
+    "java": "17.0.7",
+    "postgresql": "17.11 (Debian 17.11-1.pgdg12+2)",
+    "rabbitmq": "4.4.0"
+  },
+  "initialLedger": {
+    "cashCents": {
+      "CLI001": [
+        100000,
+        0,
+        0
+      ],
+      "CLI002": [
+        1000,
+        0,
+        0
+      ]
+    },
+    "positions": {
+      "ATV001": [
+        1,
+        0,
+        0
+      ],
+      "ATV002": [
+        10,
+        0,
+        0
+      ]
+    },
+    "settlements": 0
+  },
+  "cases": [
+    {
+      "id": "C1",
+      "injection": {
+        "participant": "custody",
+        "signal": "SIGKILL",
+        "secondsUntilRestart": 14,
+        "beforeRestart": {
+          "settlement": "CONFIRMED",
+          "cashReply": "SaldoConfirmado",
+          "assetReservation": "RESERVED",
+          "order": "RECEBIDA"
+        }
+      },
+      "orders": [
+        {
+          "orderId": "0d813b11-3cca-4b2d-a504-1dc5d5775ce6",
+          "sagaId": "a88465ba-2cc5-4577-9045-29c65ebdaaaf",
+          "orderState": "LIQUIDADA",
+          "sagaState": "CONCLUIDA",
+          "reason": null,
+          "buyer": "CLI001",
+          "asset": "ATV002",
+          "cashReservation": "CONFIRMED",
+          "assetReservation": "CONFIRMED",
+          "settlementId": "6e0d481a-16b4-4ff2-a0fc-019fbd3ad9ca",
+          "responses": [
+            "SaldoReservado",
+            "AtivoReservado",
+            "LiquidacaoConcluida",
+            "SaldoConfirmado",
+            "AtivoConfirmado",
+            "OrdemLiquidada"
+          ]
+        }
+      ],
+      "ledger": {
+        "cashCents": {
+          "CLI002": [
+            1000,
+            0,
+            0
+          ],
+          "CLI001": [
+            97450,
+            0,
+            2550
+          ]
+        },
+        "positions": {
+          "ATV001": [
+            1,
+            0,
+            0
+          ],
+          "ATV002": [
+            9,
+            1,
+            0
+          ]
+        },
+        "settlements": 1
+      }
+    },
+    {
+      "id": "C2",
+      "injection": {
+        "blockedRow": "accounts/CLI001",
+        "secondsUntilUnlock": 7,
+        "retriesBeforeUnlock": 1,
+        "orderWhileBlocked": "RECEBIDA"
+      },
+      "orders": [
+        {
+          "orderId": "68b6d8ed-3974-4faa-80a9-d56bc7fa3235",
+          "sagaId": "f8dbdb8b-82c0-418b-92b7-e1f13e381803",
+          "orderState": "LIQUIDADA",
+          "sagaState": "CONCLUIDA",
+          "reason": null,
+          "buyer": "CLI001",
+          "asset": "ATV002",
+          "cashReservation": "CONFIRMED",
+          "assetReservation": "CONFIRMED",
+          "settlementId": "a8475993-8ac9-41a4-8329-73c442a150e4",
+          "responses": [
+            "SaldoReservado",
+            "AtivoReservado",
+            "LiquidacaoConcluida",
+            "SaldoConfirmado",
+            "AtivoConfirmado",
+            "OrdemLiquidada"
+          ]
+        }
+      ],
+      "ledger": {
+        "cashCents": {
+          "CLI002": [
+            1000,
+            0,
+            0
+          ],
+          "CLI001": [
+            94900,
+            0,
+            5100
+          ]
+        },
+        "positions": {
+          "ATV001": [
+            1,
+            0,
+            0
+          ],
+          "ATV002": [
+            8,
+            2,
+            0
+          ]
+        },
+        "settlements": 2
+      }
+    },
+    {
+      "id": "C3",
+      "injection": {
+        "competingOrders": 2,
+        "reservedBalancesBeforeCustody": 2,
+        "availableUnits": 1,
+        "insufficientCashBuyer": "CLI002"
+      },
+      "orders": [
+        {
+          "orderId": "b4df5208-f2ca-4eb8-a8af-72ea4c02c8ea",
+          "sagaId": "5d47dbac-f194-43cf-9e94-5f1d1cae3dfd",
+          "orderState": "REJEITADA",
+          "sagaState": "REJEITADA",
+          "reason": "ATIVO_INSUFICIENTE",
+          "buyer": "CLI001",
+          "asset": "ATV001",
+          "cashReservation": "RELEASED",
+          "assetReservation": null,
+          "settlementId": null,
+          "responses": [
+            "SaldoReservado",
+            "AtivoRecusado",
+            "ReservaSaldoDesfeita",
+            "OrdemRejeitada"
+          ]
+        },
+        {
+          "orderId": "1ba2a363-654c-42bc-8fb3-995d2e419082",
+          "sagaId": "356447ee-b30c-47dd-a7a6-72af1284358e",
+          "orderState": "LIQUIDADA",
+          "sagaState": "CONCLUIDA",
+          "reason": null,
+          "buyer": "CLI001",
+          "asset": "ATV001",
+          "cashReservation": "CONFIRMED",
+          "assetReservation": "CONFIRMED",
+          "settlementId": "23c28179-187a-425d-bb58-0ce3ca826deb",
+          "responses": [
+            "SaldoReservado",
+            "AtivoReservado",
+            "LiquidacaoConcluida",
+            "SaldoConfirmado",
+            "AtivoConfirmado",
+            "OrdemLiquidada"
+          ]
+        },
+        {
+          "orderId": "63f719c4-bab0-4e9c-bcfa-379279021564",
+          "sagaId": "8cd72cf6-a394-4e62-87ea-5625626f9416",
+          "orderState": "REJEITADA",
+          "sagaState": "REJEITADA",
+          "reason": "SALDO_INSUFICIENTE",
+          "buyer": "CLI002",
+          "asset": "ATV002",
+          "cashReservation": null,
+          "assetReservation": null,
+          "settlementId": null,
+          "responses": [
+            "SaldoRecusado",
+            "OrdemRejeitada"
+          ]
+        }
+      ],
+      "ledger": {
+        "cashCents": {
+          "CLI002": [
+            1000,
+            0,
+            0
+          ],
+          "CLI001": [
+            93900,
+            0,
+            6100
+          ]
+        },
+        "positions": {
+          "ATV001": [
+            0,
+            1,
+            0
+          ],
+          "ATV002": [
+            8,
+            2,
+            0
+          ]
+        },
+        "settlements": 3
+      }
+    },
+    {
+      "id": "C4",
+      "injection": {
+        "command": "ConfirmarReservaAtivo",
+        "operationId": "7e9f0ddf-b62b-47b6-90b9-d33f253d0662",
+        "newMessageId": "32f99f57-7103-4a90-aa5b-96cbb3d6a2f9",
+        "secondsForTwoReplays": 2,
+        "distinctDeliveryIds": 2,
+        "processedOperations": 1
+      },
+      "orders": [
+        {
+          "orderId": "79b41f8c-f88c-4b14-be3f-ed225a7b56a5",
+          "sagaId": "66874873-ee5f-43a6-8222-c24a176ad503",
+          "orderState": "LIQUIDADA",
+          "sagaState": "CONCLUIDA",
+          "reason": null,
+          "buyer": "CLI001",
+          "asset": "ATV002",
+          "cashReservation": "CONFIRMED",
+          "assetReservation": "CONFIRMED",
+          "settlementId": "3478026e-c77f-4ef2-8c62-1e1afef1c266",
+          "responses": [
+            "SaldoReservado",
+            "AtivoReservado",
+            "LiquidacaoConcluida",
+            "SaldoConfirmado",
+            "AtivoConfirmado",
+            "OrdemLiquidada"
+          ]
+        }
+      ],
+      "ledger": {
+        "cashCents": {
+          "CLI002": [
+            1000,
+            0,
+            0
+          ],
+          "CLI001": [
+            91350,
+            0,
+            8650
+          ]
+        },
+        "positions": {
+          "ATV001": [
+            0,
+            1,
+            0
+          ],
+          "ATV002": [
+            7,
+            3,
+            0
+          ]
+        },
+        "settlements": 4
+      }
+    },
+    {
+      "id": "C5",
+      "injection": {
+        "event": "OrdemRecebida",
+        "messageId": "54a42040-2eff-4911-b897-48ae4f39a2e3",
+        "unpublishedAfterCrash": true,
+        "sagasBeforeRestart": 0,
+        "secondsFromReceiptToObservedPublication": 16
+      },
+      "orders": [
+        {
+          "orderId": "ac67cd7c-5bd5-4fb2-bffa-6aee4251e039",
+          "sagaId": "57eed1ac-573d-40b0-8725-1ff349886dd7",
+          "orderState": "LIQUIDADA",
+          "sagaState": "CONCLUIDA",
+          "reason": null,
+          "buyer": "CLI001",
+          "asset": "ATV002",
+          "cashReservation": "CONFIRMED",
+          "assetReservation": "CONFIRMED",
+          "settlementId": "f2ceb2eb-b892-4fba-919e-5f1ba5918848",
+          "responses": [
+            "SaldoReservado",
+            "AtivoReservado",
+            "LiquidacaoConcluida",
+            "SaldoConfirmado",
+            "AtivoConfirmado",
+            "OrdemLiquidada"
+          ]
+        }
+      ],
+      "ledger": {
+        "cashCents": {
+          "CLI002": [
+            1000,
+            0,
+            0
+          ],
+          "CLI001": [
+            88800,
+            0,
+            11200
+          ]
+        },
+        "positions": {
+          "ATV001": [
+            0,
+            1,
+            0
+          ],
+          "ATV002": [
+            6,
+            4,
+            0
+          ]
+        },
+        "settlements": 5
+      }
+    },
+    {
+      "id": "C6",
+      "injection": {
+        "settlementDecision": "DENIED",
+        "secondsUntilAccountRestart": 18,
+        "beforeRestart": {
+          "settlements": 0,
+          "assetReservation": "RELEASED",
+          "cashReservation": "RESERVED",
+          "order": "RECEBIDA"
+        }
+      },
+      "orders": [
+        {
+          "orderId": "5bcd1164-adb3-4297-a99b-de1c4d25e37a",
+          "sagaId": "feb4c8ec-d287-40ce-8df3-fefb00eb4557",
+          "orderState": "REJEITADA",
+          "sagaState": "REJEITADA",
+          "reason": "LIQUIDACAO_NEGADA",
+          "buyer": "CLI001",
+          "asset": "ATV002",
+          "cashReservation": "RELEASED",
+          "assetReservation": "RELEASED",
+          "settlementId": null,
+          "responses": [
+            "SaldoReservado",
+            "AtivoReservado",
+            "LiquidacaoFalhou",
+            "ReservaAtivoDesfeita",
+            "ReservaSaldoDesfeita",
+            "OrdemRejeitada"
+          ]
+        }
+      ],
+      "ledger": {
+        "cashCents": {
+          "CLI002": [
+            1000,
+            0,
+            0
+          ],
+          "CLI001": [
+            88800,
+            0,
+            11200
+          ]
+        },
+        "positions": {
+          "ATV001": [
+            0,
+            1,
+            0
+          ],
+          "ATV002": [
+            6,
+            4,
+            0
+          ]
+        },
+        "settlements": 5
+      }
+    }
+  ]
+}
