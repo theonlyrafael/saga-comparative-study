@@ -83,3 +83,99 @@ C3() {
     witness '{competingOrders:2,reservedBalancesBeforeCustody:2,availableUnits:1,insufficientCashBuyer:"CLI002"}'
     atv001=$((atv001+1))
 }
+
+publish_command() {
+    local body vhost
+    body=$(jq -c '{properties:{content_type:"application/json",delivery_mode:2,message_id:.messageId,type:.type},
+        routing_key:.type,payload:(tojson),payload_encoding:"string"}' <<<"$1")
+    vhost=$(jq -rn --arg name "$RABBITMQ_VHOST" '$name|@uri')
+    curl -fsS --max-time 10 -u "$RABBITMQ_USER:$RABBITMQ_PASSWORD" -H 'Content-Type: application/json' \
+        -d "$body" "http://127.0.0.1:$RABBITMQ_MANAGEMENT_PORT/api/exchanges/$vhost/saga.v1.commands/publish" |
+        jq -e '.routed == true' > /dev/null
+}
+
+C4() {
+    local op envelope before new_id since publication
+    use_receipt "$(purchase C4)"
+    await_step FinalizarOrdem OrdemLiquidada
+    op=$(sql orchestrator "SELECT operation_id FROM saga_steps
+        WHERE saga_id='$saga' AND command_type='ConfirmarReservaAtivo'")
+    envelope=$(sql orchestrator "SELECT envelope FROM outbox_messages WHERE operation_id='$op'")
+    publication="SELECT published_at FROM outbox_messages WHERE operation_id='$op'"
+    before=$(sql custody "$publication")
+    since=$SECONDS
+    publish_command "$envelope"
+    await_sql custody "SELECT published_at>'$before'::timestamptz FROM outbox_messages WHERE operation_id='$op'" t
+
+    before=$(sql custody "$publication")
+    new_id=$(sql custody 'SELECT gen_random_uuid()')
+    publish_command "$(jq -c --arg id "$new_id" '.messageId=$id' <<<"$envelope")"
+    await_sql custody "SELECT count(*) FROM inbox_deliveries WHERE operation_id='$op' AND message_id='$new_id'" 1
+    await_sql custody "SELECT published_at>'$before'::timestamptz FROM outbox_messages WHERE operation_id='$op'" t
+    assert_sql custody "SELECT count(*) FROM inbox_deliveries WHERE operation_id='$op'" 2
+    assert_sql custody "SELECT count(*) FROM inbox_messages WHERE operation_id='$op'" 1
+    witness --arg op "$op" --arg replayId "$new_id" --argjson seconds "$((SECONDS-since))" \
+        '{command:"ConfirmarReservaAtivo",operationId:$op,newMessageId:$replayId,
+          secondsForTwoReplays:$seconds,distinctDeliveryIds:2,processedOperations:1}'
+    verify_order LIQUIDADA
+    atv002=$((atv002+1))
+}
+
+C5() {
+    local receipt message since
+    stop order
+    OUTBOX_PUBLISHER_ENABLED=false start order
+    ready order
+    api="http://127.0.0.1:${ports[order]}/api/ordens"
+    receipt=$(purchase C5)
+    use_receipt "$receipt"
+    since=$SECONDS
+    message=$(sql orders "SELECT message_id FROM outbox_messages
+        WHERE order_id='$order' AND message_type='OrdemRecebida' AND published_at IS NULL")
+    [[ -n $message ]]
+    stop order KILL
+    assert_sql orders "SELECT status FROM orders WHERE order_id='$order'" RECEBIDA
+    assert_sql orders "SELECT published_at IS NULL FROM outbox_messages WHERE message_id='$message'" t
+    assert_sql orchestrator "SELECT count(*) FROM saga_instances WHERE saga_id='$saga'" 0
+    start order
+    ready order
+    api="http://127.0.0.1:${ports[order]}/api/ordens"
+    await_sql orders "SELECT published_at IS NOT NULL FROM outbox_messages WHERE message_id='$message'" t
+    witness --arg id "$message" --argjson seconds "$((SECONDS-since))" \
+        '{event:"OrdemRecebida",messageId:$id,unpublishedAfterCrash:true,sagasBeforeRestart:0,
+          secondsFromReceiptToObservedPublication:$seconds}'
+    verify_order LIQUIDADA
+    local replay
+    replay=$(purchase C5)
+    jq -ne --argjson first "$receipt" --argjson replay "$replay" '$first == $replay' > /dev/null
+    atv002=$((atv002+1))
+}
+
+C6() {
+    local since cash_id asset_id
+    stop settlement
+    use_receipt "$(purchase C6)"
+    await_step ReservarAtivo AtivoReservado
+    cash_id=$(sql accounts "SELECT reservation_id FROM balance_reservations WHERE order_id='$order' AND status='RESERVED'")
+    asset_id=$(sql custody "SELECT reservation_id FROM asset_reservations WHERE order_id='$order' AND status='RESERVED'")
+    [[ -n $cash_id && -n $asset_id ]]
+    stop account
+    since=$SECONDS
+    SETTLEMENT_SIMULATION_DENY_ORDER_ID="$order" start settlement
+    ready settlement
+    await_step DesfazerReservaAtivo ReservaAtivoDesfeita
+    assert_sql settlements "SELECT outcome FROM settlement_decisions WHERE order_id='$order' AND saga_id='$saga'
+        AND balance_reservation_id='$cash_id' AND asset_reservation_id='$asset_id'" DENIED
+    assert_sql settlements "SELECT count(*) FROM settlements WHERE order_id='$order'" 0
+    await_sql orchestrator "SELECT first_timeout_at IS NOT NULL AND completed_at IS NULL FROM saga_steps
+        WHERE saga_id='$saga' AND command_type='DesfazerReservaSaldo'" t
+    assert_sql custody "SELECT status FROM asset_reservations WHERE reservation_id='$asset_id'" RELEASED
+    assert_sql accounts "SELECT status FROM balance_reservations WHERE reservation_id='$cash_id'" RESERVED
+    assert_sql orders "SELECT status FROM orders WHERE order_id='$order'" RECEBIDA
+    witness --argjson seconds "$((SECONDS-since))" \
+        '{settlementDecision:"DENIED",secondsUntilAccountRestart:$seconds,
+          beforeRestart:{settlements:0,assetReservation:"RELEASED",cashReservation:"RESERVED",order:"RECEBIDA"}}'
+    start account
+    ready account
+    verify_order LIQUIDACAO_NEGADA
+}

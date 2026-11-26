@@ -48,6 +48,23 @@ verify_order() {
         -f infra/scripts/lib/verify-saga-order.jq >> "$run_dir/orders.ndjson"
 }
 
+await_delivery() {
+    local db queues deadline
+    for db in orders accounts custody settlements orchestrator; do
+        await_sql "$db" 'SELECT count(*) FROM outbox_messages WHERE published_at IS NULL' 0
+    done
+    deadline=$((SECONDS + 90))
+    while (( SECONDS < deadline )); do
+        queues=$("${compose[@]}" exec -T rabbitmq rabbitmqctl -q list_queues -p "$RABBITMQ_VHOST" \
+            name messages_ready messages_unacknowledged --formatter json)
+        if jq -e 'length > 0 and all(.[]; .messages_ready == 0 and .messages_unacknowledged == 0)' \
+            <<<"$queues" > /dev/null; then return; fi
+        sleep 1
+    done
+    echo "Pending deliveries after convergence: $queues" >&2
+    return 1
+}
+
 # Start each invocation from demo-v1. Only the settled units specified by the cases may move.
 check_ledger() {
     local debit=$((atv001 * 1000 + atv002 * 2550)) cash positions count
