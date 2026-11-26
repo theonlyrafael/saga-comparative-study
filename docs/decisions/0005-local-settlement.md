@@ -87,3 +87,13 @@ replay, concorrência, rollback e falha técnica injetada. A recuperação usa u
 instância do serviço na mesma JVM; não simula reinício do processo ou entrega de
 mensagem perdida. As suítes de saldo e custódia continuam cobrindo movimentações,
 transições, rollback e disputa por recursos, sem provar a Saga distribuída.
+
+## Atualização na etapa de recuperação
+
+A migração V5 introduziu `settlement_decisions` para que confirmação e recusa
+disputem as mesmas chaves de ordem, Saga, operação e reservas. A primeira
+transação que conclui determina o resultado. Uma confirmação existente mantém
+seu `settlementId`; uma recusa explícita grava `DENIED` e permite responder
+`LiquidacaoFalhou`. A resposta da operação fica na Outbox do participante e
+pode ser recuperada por reentrega. A compensação aguarda essa recusa durável.
+[Ensaio de recusa e recuperação após reinício](../execucao-local.md#verificar-a-compensação-e-o-reinício)

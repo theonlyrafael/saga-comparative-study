@@ -64,7 +64,13 @@ As confirmações de saldo e ativo podem chegar em qualquer ordem. Um lock na
 instância da Saga serializa o registro dessas respostas e a criação do comando
 final. As consultas usam chaves indexadas com um número fixo de etapas por ordem.
 
-A recusa de saldo permite finalizar como rejeitada porque ainda não há reserva
-para liberar. Uma recusa com reservas abertas mantém o resultado registrado e a
-Saga em recuperação pendente. O reconciliador de prazos e a liberação em ordem
-inversa fazem parte da entrega seguinte.
+## Compensação e recuperação
+
+- [x] **Recusa de ativo.** Ao receber `AtivoRecusado`, o coordenador entra em `COMPENSANDO` e envia `DesfazerReservaSaldo` à conta. A resposta `ReservaSaldoDesfeita` deve identificar a mesma operação e reserva. Só então o coordenador envia `FinalizarOrdem` com o motivo original da Inbox. A Saga termina em `REJEITADA` ao receber `OrdemRejeitada`.
+- [x] **Liquidação negada.** O serviço de liquidação grava a decisão antes de emitir `LiquidacaoFalhou`. O coordenador libera o ativo, aguarda `ReservaAtivoDesfeita`, libera o saldo e aguarda `ReservaSaldoDesfeita`. A rejeição preserva o motivo original.
+- [x] **Operações com prazo expirado.** O reconciliador procura etapas pendentes por prazo em um índice parcial. O reenvio usa o envelope original. A Inbox do participante consulta a resposta por operação e a republica. Um comando que ainda aguarda publicação segue a agenda da Outbox.
+- [x] **Reinício após liquidação confirmada.** Cada efetivação possui uma etapa persistente. Após reinício, o coordenador recupera a resposta que falta e só finaliza a compra depois que conta e custódia confirmam.
+
+As migrações V2 e V3 do orquestrador retomam recusas definitivas de ativo e liquidação registradas pela versão anterior. A V4 inclui no índice de prazos as operações antigas que ainda aguardam resposta. Na liquidação, a V5 preserva as confirmações anteriores e reserva as chaves de ordem, Saga, operação e recursos para uma única decisão.
+
+Com os cinco serviços ativos no cenário `demo-v1`, execute `bash infra/scripts/check-happy-path.sh` para verificar a compra liquidada e a compra sem estoque. Para reproduzir a recusa de liquidação e o reinício com perda de resposta, execute `bash infra/scripts/check-recovery.sh` na raiz. O segundo comando inicia seus próprios serviços. [Guia de execução local](../docs/execucao-local.md#verificar-a-compensação-e-o-reinício)

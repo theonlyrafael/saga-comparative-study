@@ -107,8 +107,9 @@ a ordem original; conteúdo divergente recebe `409`. Chave ausente ou entrada
 inválida recebe `400`; ativo desconhecido, `422`; consulta de ordem inexistente,
 `404`. A chave deve ter até 128 caracteres, sem espaços nas extremidades.
 O GET começa em `RECEBIDA` e passa a `LIQUIDADA` com o campo `liquidacaoId`
-após as duas efetivações. Uma recusa de saldo termina em `REJEITADA` com
-`motivo`. Repetir o POST com a mesma chave devolve o recibo 202 original,
+após as duas efetivações. As recusas de saldo e de ativo terminam em `REJEITADA`
+com o `motivo` original. Na recusa de ativo, a conta confirma a devolução do saldo
+antes da finalização. Repetir o POST com a mesma chave devolve o recibo 202 original,
 inclusive depois da conclusão.
 
 ## Verificar a compra de ponta a ponta
@@ -128,6 +129,11 @@ disponíveis, zero reservado e 76,50 consumidos. A contraparte termina com sete
 unidades de `ATV002` e o comprador com três. Reexecutar a verificação recupera a
 mesma compra. Outras compras que movimentem esses recursos alteram os totais.
 
+O segundo teste usa a chave `compra-sem-estoque-1` para pedir duas unidades de
+`ATV001`, que tem apenas uma disponível. O GET deve retornar `REJEITADA` com
+`ATIVO_INSUFICIENTE`. O teste confere a liberação dos 20,00 reservados, o saldo
+final igual ao anterior à compra e a ausência de reserva de ativo e de liquidação.
+
 O projeto Maven em `orquestrada/tests` executa essa verificação contra os JARs
 em execução. A suíte `clean verify` de `orquestrada/` usa Testcontainers para
 os testes de serviço. No teste externo, `ORDER_BASE_URL` configura a URL de
@@ -142,9 +148,10 @@ SAGA_DIAGNOSTICS_ENABLED=true bash infra/scripts/run-service.sh orchestrator
 curl http://127.0.0.1:8085/api/sagas/SEU_SAGA_ID
 ```
 
-O diagnóstico fica desativado por padrão. Quando habilitado, expõe `sagaId`, `orderId` e `estado`. O caminho com estoque
-insuficiente pode deixar uma reserva de saldo aberta e a execução em
-`RECUPERACAO_PENDENTE`. O próximo marco implementa a compensação e o reconciliador.
+O diagnóstico fica desativado por padrão. Quando habilitado, expõe `sagaId`,
+`orderId` e `estado`. Na recusa de ativo, a Saga fica em `COMPENSANDO` até receber
+as confirmações da conta e de ordens. Na recusa definitiva de liquidação, ela
+aguarda primeiro a liberação do ativo e depois a do saldo.
 
 Para reproduzir a retomada de uma execução em trânsito, pare o serviço de
 liquidação e crie outra compra com recursos disponíveis e uma chave HTTP nova.
@@ -153,6 +160,54 @@ reinicie liquidação e coordenador com os mesmos bancos e broker. Confira
 `LIQUIDADA` no GET da ordem e `CONCLUIDA` no diagnóstico da mesma Saga.
 Faça esse ensaio depois do teste de compra única, pois ele movimenta os recursos
 do cenário novamente.
+
+## Verificar a compensação e o reinício
+
+Na raiz, com os cinco JARs construídos, Docker Compose, Bash 4+, curl, jq, Python 3
+e o arquivo local `infra/.env` preparado, execute:
+
+```bash
+bash infra/scripts/check-recovery.sh
+```
+
+O script cria um projeto Compose exclusivo, com volumes novos e portas
+automáticas, e inicia os JARs localmente. Ao sair, encerra essas JVMs e remove
+o projeto de teste. O cenário usa uma unidade de `ATV002` a 25,50.
+
+1. A liquidação fica desligada até a ordem ter as duas reservas. Ao iniciar,
+   `SETTLEMENT_SIMULATION_DENY_ORDER_ID` seleciona aquela ordem para uma recusa
+   explícita. O serviço grava `DENIED` e a resposta na mesma transação. A Saga libera
+   ativo e saldo, nessa ordem. O teste confere as duas reservas liberadas, os totais
+   originais e o GET com `REJEITADA` e `LIQUIDACAO_NEGADA`.
+2. Em outra compra, a liquidação confirma e a conta efetiva o saldo. O teste encerra
+   a JVM do coordenador com `SIGKILL`, retoma a custódia e descarta no broker de
+   teste a resposta de ativo já publicada. Depois do reinício, o reconciliador
+   reenvia o comando da etapa pendente. A Inbox de custódia devolve a resposta
+   original. O teste verifica uma única liquidação, uma unidade transferida, 25,50
+   consumidos e a ordem `LIQUIDADA`.
+
+A opção de simulação fica vazia por padrão. A primeira decisão commitada prevalece
+mesmo quando o processo reinicia com outra configuração. O registro `DENIED` fica
+em `settlement_decisions`; a tabela `settlements` continua contendo apenas liquidações
+confirmadas. Falhas técnicas preservam a operação para nova tentativa.
+
+### Prazos do reconciliador
+
+| Propriedade | Padrão local | Uso |
+| --- | --- | --- |
+| `saga.timeout.step` | `30s` | Janela para receber resposta após publicação |
+| `saga.retry.max-attempts` | `5` | Reenvios antes de sinalizar recuperação pendente |
+| `saga.retry.initial-delay` | `1s` | Espera adicional após o primeiro reenvio |
+| `saga.retry.max-delay` | `1m` | Limite da espera adicional |
+| `reconciliation.poll-interval` | `5s` | Intervalo entre varreduras |
+| `reconciliation.batch-size` | `32` | Máximo de etapas por varredura e instância |
+
+Cada tentativa usa o mesmo `operationId`, `messageId`, ordem e Saga. A espera
+adicional dobra até o limite. Ao atingir o número configurado de reenvios,
+a Saga entra em `RECUPERACAO_PENDENTE` e continua a consultar a operação com
+a espera máxima. Uma resposta válida permite avançar. O prazo vencido sozinho
+nunca dispara liberação de recursos. Os valores da tabela são padrões de
+desenvolvimento e a calibração de carga faz parte do piloto.
 
 ## Testar a Inbox dos participantes
 

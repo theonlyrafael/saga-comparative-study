@@ -5,6 +5,7 @@ import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.params.ParameterizedTest;
 import org.junit.jupiter.params.provider.ValueSource;
 import java.util.List;
+import java.util.Optional;
 import java.util.ArrayList;
 import java.util.concurrent.*;
 import io.github.theonlyrafael.sagastudy.orchestrated.settlement.repository.SettlementRepository;
@@ -62,6 +63,44 @@ class SettlementServiceIntegrationTest {
     @BeforeEach
     void clean() {
         jdbc.update("DELETE FROM settlements");
+    }
+
+    @Test
+    void firstDecisionSurvivesAChangeInTheSimulatedOutcome() {
+        var denied = command();
+        assertThatThrownBy(() -> service.decide(denied, true)).isInstanceOf(SettlementDeniedException.class);
+        assertThatThrownBy(() -> service.confirm(denied)).isInstanceOf(SettlementDeniedException.class);
+        assertThat(service.findByOrderId(denied.balance().orderId())).isEmpty();
+
+        var confirmed = command();
+        var original = service.confirm(confirmed);
+        assertThat(service.decide(confirmed, true)).isEqualTo(original);
+        assertThat(service.findByOrderId(confirmed.balance().orderId())).contains(original);
+    }
+
+    @Test
+    void competingDenialAndConfirmationObserveTheSameCommittedOutcome() throws Exception {
+        var command = command();
+        var executor = Executors.newFixedThreadPool(2);
+        var gate = new CountDownLatch(1);
+        try {
+            var outcomes = new ArrayList<Future<Optional<Settlement>>>();
+            for (boolean requestDenial : List.of(false, true)) {
+                outcomes.add(executor.submit(() -> {
+                    gate.await();
+                    try { return Optional.of(service.decide(command, requestDenial)); }
+                    catch (SettlementDeniedException denied) { return Optional.empty(); }
+                }));
+            }
+            gate.countDown();
+            var winner = outcomes.get(0).get(20, TimeUnit.SECONDS);
+            assertThat(outcomes.get(1).get(20, TimeUnit.SECONDS)).isEqualTo(winner);
+            assertThat(service.findByOrderId(command.balance().orderId())).isEqualTo(winner);
+            assertThat(jdbc.queryForObject("SELECT outcome FROM settlement_decisions WHERE order_id=?",
+                    String.class, command.balance().orderId())).isEqualTo(winner.isPresent() ? "CONFIRMED" : "DENIED");
+        } finally {
+            executor.shutdownNow();
+        }
     }
 
     @Autowired ParticipantConsumer consumer;
@@ -320,6 +359,12 @@ class SettlementServiceIntegrationTest {
 
     private UUID seed(ConfirmSettlementCommand command) {
         UUID id = UUID.randomUUID();
+        jdbc.update("""
+                INSERT INTO settlement_decisions
+                    (order_id,saga_id,operation_id,balance_reservation_id,asset_reservation_id,outcome)
+                VALUES (?,?,?,?,?,'CONFIRMED')
+                """, command.balance().orderId(), command.balance().sagaId(), command.operationId(),
+                command.balance().reservationId(), command.asset().reservationId());
         jdbc.update("""
                 INSERT INTO settlements (settlement_id, operation_id, order_id, saga_id,
                     balance_reservation_id, asset_reservation_id, buyer_id, asset_id,

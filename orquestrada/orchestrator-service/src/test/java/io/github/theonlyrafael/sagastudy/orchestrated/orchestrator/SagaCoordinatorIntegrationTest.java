@@ -1,6 +1,7 @@
 package io.github.theonlyrafael.sagastudy.orchestrated.orchestrator;
 
 import io.github.theonlyrafael.sagastudy.orchestrated.orchestrator.application.SagaCoordinator;
+import io.github.theonlyrafael.sagastudy.orchestrated.orchestrator.application.SagaReconciler;
 import io.github.theonlyrafael.sagastudy.orchestrated.orchestrator.repository.SagaRepository;
 import java.util.UUID;
 import java.util.concurrent.CountDownLatch;
@@ -15,8 +16,10 @@ import org.springframework.amqp.core.Message;
 import org.springframework.amqp.core.MessageProperties;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.test.context.SpringBootTest;
+import org.springframework.core.io.ClassPathResource;
 import org.springframework.dao.DataIntegrityViolationException;
 import org.springframework.jdbc.core.JdbcTemplate;
+import org.springframework.jdbc.datasource.init.ResourceDatabasePopulator;
 import org.springframework.test.context.DynamicPropertyRegistry;
 import org.springframework.test.context.DynamicPropertySource;
 import org.testcontainers.junit.jupiter.Container;
@@ -30,6 +33,7 @@ import static org.assertj.core.api.Assertions.*;
 
 @Testcontainers
 @SpringBootTest(webEnvironment = SpringBootTest.WebEnvironment.NONE, properties = {
+        "reconciliation.poll-interval=1h", "saga.retry.max-attempts=2",
         "outbox.publisher.enabled=false", "spring.rabbitmq.listener.simple.auto-startup=false",
         "spring.rabbitmq.username=unused", "spring.rabbitmq.password=unused"
 })
@@ -45,6 +49,7 @@ class SagaCoordinatorIntegrationTest {
         r.add("spring.datasource.password", DB::getPassword);
     }
 
+    @Autowired SagaReconciler reconciler;
     @Autowired SagaCoordinator coordinator;
     @Autowired SagaRepository sagas;
     @Autowired ObjectMapper json;
@@ -169,22 +174,178 @@ class SagaCoordinatorIntegrationTest {
     }
 
     @ParameterizedTest
+    @ValueSource(strings = {"ATIVO_INSUFICIENTE", "POSICAO_INEXISTENTE"})
+    void rejectsOnlyAfterReleasingTheReservedBalance(String reason) throws Exception {
+        reserveBalance();
+        var refusal = reply("ReservarAtivo", "AtivoRecusado");
+        payload(refusal).put("motivo", reason);
+        concurrently(refusal, refusal.deepCopy().put("messageId", UUID.randomUUID().toString()));
+        assertState("COMPENSANDO");
+        assertThat(stepCount("ConfirmarLiquidacao")).isZero();
+        assertThat(stepCount("DesfazerReservaAtivo")).isZero();
+        assertThat(stepCount("FinalizarOrdem")).isZero();
+
+        var released = reply("DesfazerReservaSaldo", "ReservaSaldoDesfeita");
+        assertThat(payload(released).get("reservaSaldoId")).isEqualTo(payload(refusal).get("reservaSaldoId"));
+        var wrongReservation = released.deepCopy();
+        resource(wrongReservation, "reservaSaldoId");
+        reject(wrongReservation);
+        assertThat(stepCount("FinalizarOrdem")).isZero();
+
+        concurrently(released, released.deepCopy().put("messageId", UUID.randomUUID().toString()));
+        var ack = reply("FinalizarOrdem", "OrdemRejeitada");
+        assertThat(payload(ack).get("motivo").asString()).isEqualTo(reason);
+        assertState("COMPENSANDO");
+        deliver(ack);
+        assertState("REJEITADA");
+        assertThat(stepCount("DesfazerReservaSaldo")).isOne();
+        assertThat(stepCount("FinalizarOrdem")).isOne();
+    }
+
+    @ParameterizedTest
     @ValueSource(booleans = {false, true})
-    void refusalWithOpenReservationsLeavesANonterminalSaga(boolean settlementRefused) {
-        ObjectNode refusal;
-        if (settlementRefused) {
-            refusal = settlementDecision().put("type", "LiquidacaoFalhou");
-            payload(refusal).remove("liquidacaoId");
-            payload(refusal).put("motivo", "LIQUIDACAO_NEGADA");
-        } else {
-            reserveBalance();
-            refusal = reply("ReservarAtivo", "AtivoRecusado");
-            payload(refusal).put("motivo", "ATIVO_INSUFICIENTE");
+    void releasesAssetThenBalanceAfterDurableDenial(boolean legacy) {
+        var refusal = settlementDecision().put("type", "LiquidacaoFalhou");
+        payload(refusal).remove("liquidacaoId");
+        payload(refusal).put("motivo", "LIQUIDACAO_NEGADA");
+        if (legacy) {
+            recordLegacyRefusal(refusal);
+            applyMigration("V3__resume_denied_settlements.sql");
         }
         deliver(refusal);
         deliver(refusal);
-        assertState("RECUPERACAO_PENDENTE");
+        assertState("COMPENSANDO");
+        assertThat(stepCount("DesfazerReservaSaldo")).isZero();
         assertThat(stepCount("FinalizarOrdem")).isZero();
+
+        var asset = reply("DesfazerReservaAtivo", "ReservaAtivoDesfeita");
+        var releaseOperation = UUID.fromString(asset.get("operationId").asString());
+        markPublishedAndExpired(releaseOperation);
+        reconciler.reconcile();
+        assertThat(jdbc.queryForObject("SELECT retry_count FROM saga_steps WHERE operation_id=?",
+                Integer.class, releaseOperation)).isOne();
+        assertThat(stepCount("DesfazerReservaSaldo")).isZero();
+        assertThat(payload(asset).get("reservaAtivoId")).isEqualTo(payload(refusal).get("reservaAtivoId"));
+        deliver(asset);
+        deliver(asset);
+        var balance = reply("DesfazerReservaSaldo", "ReservaSaldoDesfeita");
+        assertThat(payload(balance).get("reservaSaldoId")).isEqualTo(payload(refusal).get("reservaSaldoId"));
+        assertThat(stepCount("FinalizarOrdem")).isZero();
+        deliver(balance);
+        var ack = reply("FinalizarOrdem", "OrdemRejeitada");
+        assertThat(payload(ack).get("motivo").asString()).isEqualTo("LIQUIDACAO_NEGADA");
+        assertState("COMPENSANDO");
+        deliver(ack);
+        assertState("REJEITADA");
+    }
+
+    @Test
+    void migrationResumesAnAssetRefusalAlreadyRecordedByThePreviousCoordinator() {
+        reserveBalance();
+        var refusal = reply("ReservarAtivo", "AtivoRecusado");
+        payload(refusal).put("motivo", "ATIVO_INSUFICIENTE");
+        recordLegacyRefusal(refusal);
+        applyMigration("V2__resume_refused_asset_reservations.sql");
+        assertState("COMPENSANDO");
+        deliver(refusal);
+        var released = reply("DesfazerReservaSaldo", "ReservaSaldoDesfeita");
+        assertThat(payload(released).get("reservaSaldoId")).isEqualTo(payload(refusal).get("reservaSaldoId"));
+        deliver(released);
+        var ack = reply("FinalizarOrdem", "OrdemRejeitada");
+        assertThat(payload(ack).get("motivo").asString()).isEqualTo("ATIVO_INSUFICIENTE");
+        deliver(ack);
+        assertState("REJEITADA");
+    }
+
+    @Test
+    void reconcilesOnlyPublishedUnansweredCommandsAndKeepsTheOriginalEnvelope() {
+        var decision = settlementDecision();
+        var settlementOp = UUID.fromString(decision.get("operationId").asString());
+        var original = jdbc.queryForMap("SELECT message_id, envelope::text FROM outbox_messages WHERE operation_id=?", settlementOp);
+        expire(settlementOp);
+        jdbc.update("UPDATE outbox_messages SET next_attempt_at='2099-01-01' WHERE operation_id=?", settlementOp);
+        reconciler.reconcile();
+        assertThat(jdbc.queryForObject("""
+                SELECT next_attempt_at='2099-01-01' AND published_at IS NULL FROM outbox_messages WHERE operation_id=?
+                """, Boolean.class, settlementOp)).isTrue();
+
+        for (int attempt = 1; attempt <= 2; attempt++) {
+            markPublishedAndExpired(settlementOp);
+            reconciler.reconcile();
+            assertThat(jdbc.queryForObject("SELECT published_at IS NULL FROM outbox_messages WHERE operation_id=?",
+                    Boolean.class, settlementOp)).isTrue();
+            assertThat(jdbc.queryForMap("SELECT message_id, envelope::text FROM outbox_messages WHERE operation_id=?", settlementOp))
+                    .isEqualTo(original);
+            assertThat(stepCount("DesfazerReservaAtivo")).isZero();
+            assertThat(stepCount("DesfazerReservaSaldo")).isZero();
+        }
+        assertState("RECUPERACAO_PENDENTE");
+        deliver(decision);
+        assertState("EFETIVANDO");
+
+        var balance = reply("ConfirmarReservaSaldo", "SaldoConfirmado");
+        var asset = reply("ConfirmarReservaAtivo", "AtivoConfirmado");
+        deliver(balance);
+        var balanceOp = UUID.fromString(balance.get("operationId").asString());
+        var assetOp = UUID.fromString(asset.get("operationId").asString());
+        markPublishedAndExpired(balanceOp);
+        markPublishedAndExpired(assetOp);
+        reconciler.reconcile();
+        assertThat(jdbc.queryForObject("SELECT published_at IS NULL FROM outbox_messages WHERE operation_id=?",
+                Boolean.class, balanceOp)).isFalse();
+        assertThat(jdbc.queryForObject("SELECT published_at IS NULL FROM outbox_messages WHERE operation_id=?",
+                Boolean.class, assetOp)).isTrue();
+        assertThat(stepCount("FinalizarOrdem")).isZero();
+        deliver(asset);
+        deliver(reply("FinalizarOrdem", "OrdemLiquidada"));
+        assertState("CONCLUIDA");
+    }
+
+    @Test
+    void concurrentReconcilersWaitForTheBrokerDeadlineAndRearmOnlyOnce() throws Exception {
+        deliver(received);
+        var op = UUID.fromString(reply("ReservarSaldo", "SaldoReservado").get("operationId").asString());
+        expire(op);
+        jdbc.update("UPDATE outbox_messages SET published_at=now() WHERE operation_id=?", op);
+        reconciler.reconcile();
+        assertThat(jdbc.queryForObject("SELECT published_at IS NOT NULL FROM outbox_messages WHERE operation_id=?",
+                Boolean.class, op)).isTrue();
+
+        markPublishedAndExpired(op);
+        concurrently(reconciler::reconcile, reconciler::reconcile);
+        assertThat(jdbc.queryForObject("SELECT retry_count FROM saga_steps WHERE operation_id=?", Integer.class, op)).isOne();
+        assertThat(jdbc.queryForObject("SELECT published_at IS NULL FROM outbox_messages WHERE operation_id=?",
+                Boolean.class, op)).isTrue();
+        assertState("RESERVANDO_SALDO");
+    }
+
+    private void expire(UUID operation) {
+        jdbc.update("UPDATE saga_steps SET wait_started_at=now()-interval '1 day' WHERE operation_id=?", operation);
+    }
+
+    private void markPublishedAndExpired(UUID operation) {
+        jdbc.update("UPDATE outbox_messages SET published_at=now()-interval '1 day' WHERE operation_id=?", operation);
+        expire(operation);
+    }
+
+    private void recordLegacyRefusal(ObjectNode refusal) {
+        // Reproduce the committed V1 state, including the receipt that prevents redelivery from advancing it.
+        var operation = UUID.fromString(refusal.get("operationId").asString());
+        var content = refusal.deepCopy();
+        content.remove("messageId");
+        content.remove("occurredAt");
+        jdbc.update("INSERT INTO inbox_operations (operation_id, saga_id, content) VALUES (?, ?, ?::jsonb)",
+                operation, sagaId, content.toString());
+        jdbc.update("INSERT INTO inbox_deliveries (message_id, operation_id) VALUES (?, ?)",
+                UUID.fromString(refusal.get("messageId").asString()), operation);
+        jdbc.update("UPDATE saga_steps SET response_type=?, completed_at=now() WHERE operation_id=?",
+                refusal.get("type").asString(), operation);
+        jdbc.update("UPDATE saga_instances SET state='RECUPERACAO_PENDENTE' WHERE saga_id=?", sagaId);
+    }
+
+    private void applyMigration(String name) {
+        var migration = new ClassPathResource("db/migration/" + name);
+        new ResourceDatabasePopulator(migration).execute(jdbc.getDataSource());
     }
 
     private void reserveBalance() {
@@ -244,11 +405,15 @@ class SagaCoordinatorIntegrationTest {
     }
 
     private void concurrently(ObjectNode first, ObjectNode second) throws Exception {
+        concurrently(() -> deliver(first), () -> deliver(second));
+    }
+
+    private void concurrently(Runnable first, Runnable second) throws Exception {
         var pool = Executors.newFixedThreadPool(2);
         var gate = new CountDownLatch(1);
         try {
-            var a = pool.submit(() -> { gate.await(); deliver(first); return null; });
-            var b = pool.submit(() -> { gate.await(); deliver(second); return null; });
+            var a = pool.submit(() -> { gate.await(); first.run(); return null; });
+            var b = pool.submit(() -> { gate.await(); second.run(); return null; });
             gate.countDown();
             a.get(20, TimeUnit.SECONDS);
             b.get(20, TimeUnit.SECONDS);
