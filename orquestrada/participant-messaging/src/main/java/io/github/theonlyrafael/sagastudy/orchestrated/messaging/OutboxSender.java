@@ -27,6 +27,7 @@ public class OutboxSender {
     public boolean send(PendingMessage event) throws InterruptedException, ExecutionException, TimeoutException {
         var properties = new MessageProperties();
         properties.setMessageId(event.id().toString());
+        if (event.traceparent() != null) properties.setHeader("traceparent", event.traceparent());
         properties.setType(event.type());
         properties.setContentType(MessageProperties.CONTENT_TYPE_JSON);
         properties.setContentEncoding(StandardCharsets.UTF_8.name());

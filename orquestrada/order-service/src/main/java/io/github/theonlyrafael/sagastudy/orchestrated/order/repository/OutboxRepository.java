@@ -3,6 +3,7 @@ package io.github.theonlyrafael.sagastudy.orchestrated.order.repository;
 import io.github.theonlyrafael.sagastudy.orchestrated.order.messaging.OrderReceived;
 import io.github.theonlyrafael.sagastudy.orchestrated.messaging.ReplyOutbox;
 import io.github.theonlyrafael.sagastudy.orchestrated.messaging.SagaEnvelope;
+import io.github.theonlyrafael.sagastudy.orchestrated.messaging.SagaTracing;
 import java.util.UUID;
 import org.springframework.jdbc.core.JdbcTemplate;
 import tools.jackson.databind.node.ObjectNode;
@@ -25,16 +26,16 @@ public class OutboxRepository implements ReplyOutbox {
     @Override
     public void append(String consumer, SagaEnvelope command, UUID messageId, ObjectNode reply) {
         jdbc.update("""
-                INSERT INTO outbox_messages (message_id, order_id, consumer_name, operation_id, message_type, request, envelope)
-                VALUES (?, ?, ?, ?, ?, ?::jsonb, ?::jsonb)
+                INSERT INTO outbox_messages (message_id, order_id, consumer_name, operation_id, message_type, request, envelope, traceparent)
+                VALUES (?, ?, ?, ?, ?, ?::jsonb, ?::jsonb, ?)
                 """, messageId, command.orderId(), consumer, command.operationId(), reply.get("type").asString(),
-                command.content().toString(), reply.toString());
+                command.content().toString(), reply.toString(), SagaTracing.currentParent());
     }
 
     public void append(OrderReceived event) {
         jdbc.update("""
-                INSERT INTO outbox_messages (message_id, order_id, message_type, envelope)
-                VALUES (?, ?, ?, CAST(? AS jsonb))
-                """, event.messageId(), event.orderId(), event.type(), json.writeValueAsString(event));
+                INSERT INTO outbox_messages (message_id, order_id, message_type, envelope, traceparent)
+                VALUES (?, ?, ?, CAST(? AS jsonb), ?)
+                """, event.messageId(), event.orderId(), event.type(), json.writeValueAsString(event), SagaTracing.currentParent());
     }
 }

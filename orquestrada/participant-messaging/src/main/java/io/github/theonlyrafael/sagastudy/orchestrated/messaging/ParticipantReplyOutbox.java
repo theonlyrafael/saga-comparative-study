@@ -18,9 +18,9 @@ public class ParticipantReplyOutbox implements ReplyOutbox {
     @Override
     public void append(String consumer, SagaEnvelope command, UUID messageId, ObjectNode reply) {
         jdbc.update("""
-                INSERT INTO outbox_messages (message_id, consumer_name, operation_id, message_type, request, envelope)
-                VALUES (?, ?, ?, ?, ?::jsonb, ?::jsonb)
+                INSERT INTO outbox_messages (message_id, consumer_name, operation_id, message_type, request, envelope, traceparent)
+                VALUES (?, ?, ?, ?, ?::jsonb, ?::jsonb, ?)
                 """, messageId, consumer, command.operationId(), reply.get("type").asString(),
-                command.content().toString(), reply.toString());
+                command.content().toString(), reply.toString(), SagaTracing.currentParent());
     }
 }

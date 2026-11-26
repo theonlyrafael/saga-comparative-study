@@ -5,6 +5,7 @@ import io.github.theonlyrafael.sagastudy.orchestrated.messaging.SagaEnvelope;
 import io.github.theonlyrafael.sagastudy.orchestrated.orchestrator.repository.SagaInbox;
 import io.github.theonlyrafael.sagastudy.orchestrated.orchestrator.repository.SagaRepository;
 import io.github.theonlyrafael.sagastudy.orchestrated.orchestrator.repository.SagaSteps;
+import io.github.theonlyrafael.sagastudy.orchestrated.messaging.SagaTracing;
 import org.springframework.amqp.AmqpRejectAndDontRequeueException;
 import org.springframework.amqp.core.Message;
 import org.springframework.amqp.rabbit.annotation.RabbitListener;
@@ -16,12 +17,16 @@ import static io.github.theonlyrafael.sagastudy.orchestrated.orchestrator.domain
 
 @Service
 public class SagaCoordinator {
+    private final SagaTracing tracing;
     private final EnvelopeReader reader;
     private final SagaInbox inbox;
     private final SagaRepository sagas;
     private final SagaSteps steps;
+    private final SagaMetrics metrics;
 
-    public SagaCoordinator(EnvelopeReader reader, SagaInbox inbox, SagaRepository sagas, SagaSteps steps) {
+    public SagaCoordinator(SagaTracing tracing, EnvelopeReader reader, SagaInbox inbox, SagaRepository sagas, SagaSteps steps, SagaMetrics metrics) {
+        this.metrics = metrics;
+        this.tracing = tracing;
         this.reader = reader;
         this.inbox = inbox;
         this.sagas = sagas;
@@ -32,6 +37,10 @@ public class SagaCoordinator {
     @Transactional
     public void receive(Message delivery) {
         var event = reader.read(delivery);
+        tracing.consume(delivery, event, () -> process(event));
+    }
+
+    private void process(SagaEnvelope event) {
         if (!inbox.claim(event)) return;
         if (event.type().equals("OrdemRecebida")) {
             sagas.start(event);
@@ -56,6 +65,7 @@ public class SagaCoordinator {
             case "OrdemLiquidada", "OrdemRejeitada" -> {
                 steps.complete(event, FINALIZE_ORDER);
                 sagas.advance(event.sagaId(), event.type().equals("OrdemLiquidada") ? CONCLUIDA : REJEITADA);
+                metrics.onCompletion(event.sagaId());
             }
             case "SaldoRecusado" -> {
                 steps.complete(event, RESERVE_BALANCE);

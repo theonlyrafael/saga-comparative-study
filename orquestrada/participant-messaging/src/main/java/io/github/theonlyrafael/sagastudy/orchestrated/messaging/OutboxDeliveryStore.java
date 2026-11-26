@@ -18,12 +18,12 @@ public class OutboxDeliveryStore {
 
     public Optional<PendingMessage> lockNext() {
         return jdbc.query("""
-                SELECT message_id, message_type, envelope::text FROM outbox_messages
+                SELECT message_id, message_type, envelope::text, traceparent FROM outbox_messages
                 WHERE published_at IS NULL AND next_attempt_at <= CURRENT_TIMESTAMP
                 ORDER BY next_attempt_at, created_at, message_id
                 LIMIT 1 FOR UPDATE SKIP LOCKED
                 """, (row, index) -> new PendingMessage(row.getObject(1, UUID.class),
-                        row.getString(2), row.getString(3))).stream().findFirst();
+                        row.getString(2), row.getString(3), row.getString(4))).stream().findFirst();
     }
 
     public void markPublished(UUID id) {

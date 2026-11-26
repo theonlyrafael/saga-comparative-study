@@ -9,7 +9,7 @@ import tools.jackson.databind.JsonNode;
 import tools.jackson.databind.node.ObjectNode;
 
 /** Content excludes the two delivery-specific fields so retries can be compared by operation. */
-public record SagaEnvelope(String type, UUID messageId, UUID operationId, UUID orderId, UUID sagaId, ObjectNode content) {
+public record SagaEnvelope(String type, UUID messageId, UUID operationId, UUID orderId, UUID sagaId, Instant occurredAt, ObjectNode content) {
     private static final Set<String> HEADER = Set.of("type", "schemaVersion", "messageId", "operationId",
             "orderId", "sagaId", "occurredAt", "payload");
     private static final Set<String> SNAPSHOT = Set.of("clienteId", "ativoId", "quantidade",
@@ -21,14 +21,14 @@ public record SagaEnvelope(String type, UUID messageId, UUID operationId, UUID o
                 "Unsupported schema version");
         String type = text(node, "type", 64);
         require(type.equals(route), "Routing key must match type");
-        Instant.parse(text(node, "occurredAt", 64));
+        var occurredAt = Instant.parse(text(node, "occurredAt", 64));
         require(node.get("payload") instanceof ObjectNode, "Object payload required");
         validatePayload(type, (ObjectNode) node.get("payload"));
         var content = ((ObjectNode) node).deepCopy();
         content.remove("messageId");
         content.remove("occurredAt");
         return new SagaEnvelope(type, uuid(node, "messageId"), uuid(node, "operationId"),
-                uuid(node, "orderId"), uuid(node, "sagaId"), content);
+                uuid(node, "orderId"), uuid(node, "sagaId"), occurredAt, content);
     }
 
     private static void validatePayload(String type, ObjectNode payload) {

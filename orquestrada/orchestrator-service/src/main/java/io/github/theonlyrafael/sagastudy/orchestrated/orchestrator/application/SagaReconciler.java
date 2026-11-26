@@ -70,9 +70,11 @@ public class SagaReconciler {
             }
         }
         jdbc.update("""
-                UPDATE saga_steps SET retry_count=?, wait_started_at=CURRENT_TIMESTAMP + ? * interval '1 ms'
+                UPDATE saga_steps SET retry_count=?,
+                    first_timeout_at=COALESCE(first_timeout_at, CASE WHEN ? THEN clock_timestamp() END),
+                    wait_started_at=CURRENT_TIMESTAMP + ? * interval '1 ms'
                 WHERE operation_id=?
-                """, retries, backoff, step.operationId());
+                """, retries, rearmed == 1, backoff, step.operationId());
     }
 
     private long retryDelay(int retries) {

@@ -3,6 +3,8 @@ package io.github.theonlyrafael.sagastudy.orchestrated.orchestrator;
 import io.github.theonlyrafael.sagastudy.orchestrated.orchestrator.application.SagaCoordinator;
 import io.github.theonlyrafael.sagastudy.orchestrated.orchestrator.application.SagaReconciler;
 import io.github.theonlyrafael.sagastudy.orchestrated.orchestrator.repository.SagaRepository;
+import io.micrometer.core.instrument.MeterRegistry;
+import java.time.Instant;
 import java.util.UUID;
 import java.util.concurrent.CountDownLatch;
 import java.util.concurrent.Executors;
@@ -22,6 +24,7 @@ import org.springframework.jdbc.core.JdbcTemplate;
 import org.springframework.jdbc.datasource.init.ResourceDatabasePopulator;
 import org.springframework.test.context.DynamicPropertyRegistry;
 import org.springframework.test.context.DynamicPropertySource;
+import org.springframework.transaction.support.TransactionTemplate;
 import org.testcontainers.junit.jupiter.Container;
 import org.testcontainers.junit.jupiter.Testcontainers;
 import org.testcontainers.postgresql.PostgreSQLContainer;
@@ -54,6 +57,8 @@ class SagaCoordinatorIntegrationTest {
     @Autowired SagaRepository sagas;
     @Autowired ObjectMapper json;
     @Autowired JdbcTemplate jdbc;
+    @Autowired MeterRegistry meters;
+    @Autowired TransactionTemplate transaction;
     private final UUID sagaId = UUID.randomUUID();
     private ObjectNode received;
 
@@ -95,8 +100,41 @@ class SagaCoordinatorIntegrationTest {
         deliver(finalized);
         assertState("CONCLUIDA");
         assertThat(jdbc.queryForObject("""
+                SELECT compensation_seconds IS NULL AND convergence_seconds IS NULL
+                FROM saga_measurements WHERE saga_id=?
+                """, Boolean.class, sagaId)).isTrue();
+        assertThat(jdbc.queryForObject("""
                 SELECT count(*) FROM saga_steps WHERE saga_id=? AND completed_at IS NOT NULL
                 """, Integer.class, sagaId)).isEqualTo(6);
+    }
+
+    @Test
+    void rollbackAndDuplicateDeliveryDoNotInflateTerminalMeasurements() {
+        received.put("occurredAt", Instant.now().minusSeconds(1).toString());
+        deliver(received);
+        var refusal = reply("ReservarSaldo", "SaldoRecusado");
+        payload(refusal).put("motivo", "SALDO_INSUFICIENTE");
+        deliver(refusal);
+        var ack = reply("FinalizarOrdem", "OrdemRejeitada");
+        long before = rejectedLatencyCount();
+        transaction.executeWithoutResult(status -> {
+            deliver(ack);
+            status.setRollbackOnly();
+        });
+        assertThat(rejectedLatencyCount()).isEqualTo(before);
+        assertState("COMPENSANDO");
+        deliver(ack);
+        deliver(ack);
+        assertThat(rejectedLatencyCount()).isEqualTo(before + 1);
+        assertThat(jdbc.queryForObject("""
+                SELECT latency_seconds >= 0 AND convergence_seconds >= 0 AND compensation_seconds IS NULL
+                FROM saga_measurements WHERE saga_id=?
+                """, Boolean.class, sagaId)).isTrue();
+    }
+
+    private long rejectedLatencyCount() {
+        var timer = meters.find("saga.order.latency").tag("outcome", "REJEITADA").timer();
+        return timer == null ? 0 : timer.count();
     }
 
     @Test
