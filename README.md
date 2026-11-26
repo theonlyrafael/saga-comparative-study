@@ -43,9 +43,12 @@ Estudo comparativo de Sagas para a compra simulada de um ativo. O desenvolviment
 - [x] Reconciliar operações com prazo expirado e reenviar comandos pendentes com o mesmo identificador.
 - [x] Retomar efetivações pendentes após reinício quando a liquidação já estiver confirmada.
 
+**Observabilidade**
+
+- [x] Rastrear a ordem nos cinco serviços e medir latência, compensação e convergência.
+
 **Próximas entregas**
 
-- [ ] Completar tracing e métricas de convergência, compensação e latência.
 - [ ] Executar os cenários C1–C6 e verificar os invariantes da Saga de ponta a ponta.
 - [ ] Executar o piloto com carga e configurações reproduzíveis.
 
