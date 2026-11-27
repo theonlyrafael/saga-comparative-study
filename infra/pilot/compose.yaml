@@ -9,7 +9,7 @@ x-postgres: &postgres
   ports:
     - "127.0.0.1::5432"
   volumes:
-    - ./init.sql:/docker-entrypoint-initdb.d/01-app.sql:ro
+    - ${PILOT_DB_INIT:-./init.sql}:/docker-entrypoint-initdb.d/01-app.sql:ro
   healthcheck:
     test: ["CMD-SHELL", "pg_isready -h 127.0.0.1 -U postgres -d $$POSTGRES_DB"]
     interval: 2s
