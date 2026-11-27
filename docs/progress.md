@@ -1,5 +1,13 @@
 # Progresso — Saga orquestrada
 
+## Cenários de falha C1–C6 — 26/11/2026
+
+Os seis cenários passaram com os cinco serviços, PostgreSQL 17.11, RabbitMQ 4.4.0 e o seed `demo-v1`. Das oito ordens, cinco liquidaram e três foram rejeitadas. Os motivos foram `ATIVO_INSUFICIENTE`, `SALDO_INSUFICIENTE` e `LIQUIDACAO_NEGADA`. Ao final, `CLI001` tinha 888,00 disponíveis, 112,00 consumidos e nenhuma reserva aberta. Recebeu uma unidade de `ATV001` e quatro de `ATV002`. [Evidência por ordem](../experimentos/orquestrada/falhas/2026-11-26.json)
+
+O C6 passou também em execução isolada. Enquanto a conta estava indisponível, o ativo já havia sido liberado, o saldo permanecia reservado e a ordem ainda constava como `RECEBIDA`. O reinício permitiu liberar o saldo e encerrar a Saga.
+
+O `clean verify` aprovou 262 testes Java, sem falhas, erros ou testes ignorados. Também passaram os cinco testes de contrato, o teste das 21 rotas de mensageria e o ensaio de recuperação que descarta uma resposta já publicada. O piloto de carga é a próxima entrega. [Reproduzir a matriz](cenarios-de-falha.md)
+
 ## Motor persistente e caminho feliz — 23/11/2026
 
 A branch `feat/orchestrated-saga-engine` integra o cenário `demo-v1`, os
