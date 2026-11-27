@@ -2,20 +2,22 @@
 # Shared by black-box checks run from the repository root.
 declare -A pids=() ports=()
 
-init_stack() {
+prepare_stack() {
     umask 077
     run_dir=$(mktemp -d)
     cp "${SAGA_ENV_FILE:-infra/.env}" "$run_dir/services.env"
     export SAGA_ENV_FILE="$run_dir/services.env"
     project="saga-${1}-${run_dir##*.}"
-    compose=(docker compose -p "${project,,}" --env-file "$SAGA_ENV_FILE" -f infra/compose.yaml)
+    compose=(docker compose -p "${project,,}" --env-file "$SAGA_ENV_FILE" -f "$2")
     trap cleanup EXIT
     trap 'exit 130' INT TERM
-    POSTGRES_PORT=0 RABBITMQ_PORT=0 RABBITMQ_MANAGEMENT_PORT=0 "${compose[@]}" up -d --wait
-    port() { "${compose[@]}" port "$1" "$2" | cut -d: -f2; }
+}
+
+port() { "${compose[@]}" port "$1" "$2" | cut -d: -f2; }
+
+connect_broker() {
     {
         echo
-        echo "POSTGRES_PORT=$(port postgres 5432)"
         echo "RABBITMQ_PORT=$(port rabbitmq 5672)"
         echo "RABBITMQ_MANAGEMENT_PORT=$(port rabbitmq 15672)"
         echo "DB_HOST=127.0.0.1"
@@ -24,6 +26,13 @@ init_stack() {
     source "$SAGA_ENV_FILE"
     export RABBITMQ_USER RABBITMQ_PASSWORD RABBITMQ_VHOST RABBITMQ_MANAGEMENT_PORT
     python3 infra/rabbitmq/configure.py
+}
+
+init_stack() {
+    prepare_stack "$1" infra/compose.yaml
+    POSTGRES_PORT=0 RABBITMQ_PORT=0 RABBITMQ_MANAGEMENT_PORT=0 "${compose[@]}" up -d --wait
+    printf '\nPOSTGRES_PORT=%s\n' "$(port postgres 5432)" >> "$SAGA_ENV_FILE"
+    connect_broker
 }
 
 stop() {
@@ -43,7 +52,7 @@ cleanup() {
 start() {
     local svc=$1 profile=default
     case "$svc" in order|custody|account) profile=demo;; esac
-    SPRING_PROFILES_ACTIVE="$profile" SERVER_PORT=0 bash infra/scripts/run-service.sh "$svc" >"$run_dir/$svc.log" 2>&1 &
+    SPRING_PROFILES_ACTIVE="${2:-$profile}" SERVER_PORT=0 bash infra/scripts/run-service.sh "$svc" >"$run_dir/$svc.log" 2>&1 &
     pids[$svc]=$!
 }
 ready() {

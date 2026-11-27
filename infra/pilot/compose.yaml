@@ -1,0 +1,73 @@
+name: saga-load-pilot
+
+x-pg-env: &pg-env
+  POSTGRES_PASSWORD: ${POSTGRES_ADMIN_PASSWORD:?}
+  POSTGRES_INITDB_ARGS: --auth-host=scram-sha-256
+
+x-postgres: &postgres
+  image: postgres:17.11-bookworm@sha256:839fbb5a4942a7758dd93e18b42ea5649807491a0545b5eeeb8f0b8bb11857a5
+  ports:
+    - "127.0.0.1::5432"
+  volumes:
+    - ./init.sql:/docker-entrypoint-initdb.d/01-app.sql:ro
+  healthcheck:
+    test: ["CMD-SHELL", "pg_isready -h 127.0.0.1 -U postgres -d $$POSTGRES_DB"]
+    interval: 2s
+    timeout: 5s
+    retries: 40
+
+services:
+  orders:
+    <<: *postgres
+    environment:
+      <<: *pg-env
+      POSTGRES_DB: orders_db
+      APP_USER: orders_user
+      APP_PASSWORD: ${ORDERS_DB_PASSWORD:?}
+  accounts:
+    <<: *postgres
+    environment:
+      <<: *pg-env
+      POSTGRES_DB: accounts_db
+      APP_USER: accounts_user
+      APP_PASSWORD: ${ACCOUNTS_DB_PASSWORD:?}
+  custody:
+    <<: *postgres
+    environment:
+      <<: *pg-env
+      POSTGRES_DB: custody_db
+      APP_USER: custody_user
+      APP_PASSWORD: ${CUSTODY_DB_PASSWORD:?}
+  settlements:
+    <<: *postgres
+    environment:
+      <<: *pg-env
+      POSTGRES_DB: settlements_db
+      APP_USER: settlements_user
+      APP_PASSWORD: ${SETTLEMENTS_DB_PASSWORD:?}
+  orchestrator:
+    <<: *postgres
+    environment:
+      <<: *pg-env
+      POSTGRES_DB: orchestrator_db
+      APP_USER: orchestrator_user
+      APP_PASSWORD: ${ORCHESTRATOR_DB_PASSWORD:?}
+
+  rabbitmq:
+    extends:
+      file: ../compose.yaml
+      service: rabbitmq
+
+  prometheus:
+    profiles: [metrics]
+    extends:
+      file: ../observability/compose.yaml
+      service: prometheus
+    command:
+      - --config.file=/etc/prometheus/prometheus.yml
+      - --web.listen-address=127.0.0.1:0
+    volumes:
+      - ${PILOT_PROM_CONFIG:-../observability/prometheus.yml}:/etc/prometheus/prometheus.yml:ro
+
+volumes:
+  rabbitmq-data:
