@@ -19,3 +19,7 @@ Uma falha da instância afeta todos os bancos. Experimentos de falha individual
 exigem instâncias separadas e topologia comparável entre modalidades. Isolamento
 de acesso não equivale a isolamento de falha. Volumes persistentes sobrevivem ao
 encerramento normal; sua exclusão é uma operação destrutiva separada.
+
+No piloto de carga da modalidade orquestrada, cada serviço usa uma instância
+PostgreSQL independente. Os cinco contêineres compartilham o host da calibração
+e cada serviço se conecta apenas à sua instância. [Topologia e reprodução do piloto](../piloto-de-carga.md)

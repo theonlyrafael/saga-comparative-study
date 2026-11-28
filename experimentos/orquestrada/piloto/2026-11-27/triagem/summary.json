@@ -1,0 +1,555 @@
+{
+  "levels": [
+    {
+      "offeredRps": 1,
+      "orders": 212,
+      "measured": 150,
+      "medianCompletedRps": 1.0,
+      "medianP95Ms": 6548.196,
+      "medianP99Ms": 6566.194,
+      "throughputCV": 0.02355,
+      "p95CV": 0.07907,
+      "roundsAt90Pct": 5,
+      "sustained": true,
+      "planningRepetitions": 5
+    },
+    {
+      "offeredRps": 3,
+      "orders": 633,
+      "measured": 450,
+      "medianCompletedRps": 2.8667,
+      "medianP95Ms": 8575.68,
+      "medianP99Ms": 8834.313,
+      "throughputCV": 0.16932,
+      "p95CV": 0.57685,
+      "roundsAt90Pct": 4,
+      "sustained": true,
+      "planningRepetitions": 128
+    },
+    {
+      "offeredRps": 6,
+      "orders": 1265,
+      "measured": 900,
+      "medianCompletedRps": 1.7,
+      "medianP95Ms": 53706.192,
+      "medianP99Ms": 54123.706,
+      "throughputCV": 0.03101,
+      "p95CV": 0.03442,
+      "roundsAt90Pct": 0,
+      "sustained": false,
+      "planningRepetitions": 5
+    }
+  ],
+  "rounds": [
+    {
+      "file": "round-01.json.gz",
+      "sha256": "51b299def282860a0c55ae79a7775e473c93303b6429afbaf32456275aaea2bf",
+      "rate": 1,
+      "block": 1,
+      "orders": 42,
+      "measured": 30,
+      "finishedInWindow": 30,
+      "completedRps": 1.0,
+      "p50Ms": 6381.927,
+      "p95Ms": 7639.497,
+      "p99Ms": 7695.134,
+      "iqrMs": 962.079,
+      "backlogAtStart": 6,
+      "backlogAtEnd": 6,
+      "drainSeconds": 4.557,
+      "retries": 0,
+      "resourcesMean": {
+        "cpuFraction": {
+          "account": 0.03817,
+          "settlement": 0.0253,
+          "order": 0.04204,
+          "custody": 0.05275,
+          "orchestrator": 0.05158
+        },
+        "heapBytes": {
+          "account": 68301081.6,
+          "custody": 64849363.2,
+          "orchestrator": 55480880.0,
+          "order": 60532648.53333,
+          "settlement": 62367124.26667
+        }
+      }
+    },
+    {
+      "file": "round-02.json.gz",
+      "sha256": "eb436a55e41db38ec141a26a1635e5b281ef787bff0456ed056bc1e45b737423",
+      "rate": 3,
+      "block": 1,
+      "orders": 127,
+      "measured": 90,
+      "finishedInWindow": 56,
+      "completedRps": 1.8667,
+      "p50Ms": 20844.768,
+      "p95Ms": 23339.47,
+      "p99Ms": 23937.196,
+      "iqrMs": 3507.767,
+      "backlogAtStart": 26,
+      "backlogAtEnd": 60,
+      "drainSeconds": 16.811,
+      "retries": 0,
+      "resourcesMean": {
+        "cpuFraction": {
+          "account": 0.05908,
+          "settlement": 0.02948,
+          "order": 0.05608,
+          "custody": 0.06644,
+          "orchestrator": 0.0688
+        },
+        "heapBytes": {
+          "account": 61253218.13333,
+          "custody": 64592896.0,
+          "orchestrator": 55492122.13333,
+          "order": 60931938.13333,
+          "settlement": 50023202.13333
+        }
+      }
+    },
+    {
+      "file": "round-03.json.gz",
+      "sha256": "ba16688dd711fb256dcbe60582f1f7405e7e8bac9767ef938f0b8a31679500e5",
+      "rate": 6,
+      "block": 1,
+      "orders": 253,
+      "measured": 180,
+      "finishedInWindow": 50,
+      "completedRps": 1.6667,
+      "p50Ms": 53550.126,
+      "p95Ms": 56719.721,
+      "p99Ms": 57000.523,
+      "iqrMs": 6274.063,
+      "backlogAtStart": 61,
+      "backlogAtEnd": 191,
+      "drainSeconds": 50.984,
+      "retries": 0,
+      "resourcesMean": {
+        "cpuFraction": {
+          "account": 0.02875,
+          "settlement": 0.01558,
+          "order": 0.02892,
+          "custody": 0.03567,
+          "orchestrator": 0.026
+        },
+        "heapBytes": {
+          "account": 61123716.26667,
+          "custody": 65641472.0,
+          "orchestrator": 58551484.8,
+          "order": 55333493.33333,
+          "settlement": 50887036.8
+        }
+      }
+    },
+    {
+      "file": "round-04.json.gz",
+      "sha256": "dd9849136244a355d74c1914482b845c03d5e3804f492c8cb8910a5f4c85f8f3",
+      "rate": 6,
+      "block": 2,
+      "orders": 253,
+      "measured": 180,
+      "finishedInWindow": 52,
+      "completedRps": 1.7333,
+      "p50Ms": 52624.674,
+      "p95Ms": 56180.317,
+      "p99Ms": 56942.817,
+      "iqrMs": 4121.527,
+      "backlogAtStart": 61,
+      "backlogAtEnd": 189,
+      "drainSeconds": 50.139,
+      "retries": 0,
+      "resourcesMean": {
+        "cpuFraction": {
+          "account": 0.03392,
+          "settlement": 0.01242,
+          "order": 0.02955,
+          "custody": 0.02725,
+          "orchestrator": 0.024
+        },
+        "heapBytes": {
+          "account": 62453030.4,
+          "custody": 63704053.86667,
+          "orchestrator": 57302662.4,
+          "order": 56068128.0,
+          "settlement": 50631502.93333
+        }
+      }
+    },
+    {
+      "file": "round-05.json.gz",
+      "sha256": "f373980421be54fb0049a12582c3a93738b1db2ca135788ba1a0a479528f90d2",
+      "rate": 3,
+      "block": 2,
+      "orders": 126,
+      "measured": 90,
+      "finishedInWindow": 83,
+      "completedRps": 2.7667,
+      "p50Ms": 7326.554,
+      "p95Ms": 8575.68,
+      "p99Ms": 8834.313,
+      "iqrMs": 1070.935,
+      "backlogAtStart": 18,
+      "backlogAtEnd": 25,
+      "drainSeconds": 6.626,
+      "retries": 0,
+      "resourcesMean": {
+        "cpuFraction": {
+          "account": 0.01633,
+          "settlement": 0.01075,
+          "order": 0.01217,
+          "custody": 0.01425,
+          "orchestrator": 0.0225
+        },
+        "heapBytes": {
+          "account": 63355628.8,
+          "custody": 64880716.8,
+          "orchestrator": 59941113.6,
+          "order": 64789076.8,
+          "settlement": 61955414.4
+        }
+      }
+    },
+    {
+      "file": "round-06.json.gz",
+      "sha256": "7040ccf6325c60ecbecc0d55c57ff7882b91a3ed80f456f973d4b9ca7fff569e",
+      "rate": 1,
+      "block": 2,
+      "orders": 43,
+      "measured": 30,
+      "finishedInWindow": 31,
+      "completedRps": 1.0333,
+      "p50Ms": 5928.344,
+      "p95Ms": 6272.802,
+      "p99Ms": 6281.812,
+      "iqrMs": 364.973,
+      "backlogAtStart": 6,
+      "backlogAtEnd": 5,
+      "drainSeconds": 5.338,
+      "retries": 0,
+      "resourcesMean": {
+        "cpuFraction": {
+          "account": 0.00858,
+          "settlement": 0.00667,
+          "order": 0.00867,
+          "custody": 0.00908,
+          "orchestrator": 0.01033
+        },
+        "heapBytes": {
+          "account": 55933753.6,
+          "custody": 59559731.2,
+          "orchestrator": 56033808.53333,
+          "order": 51688684.26667,
+          "settlement": 49895010.13333
+        }
+      }
+    },
+    {
+      "file": "round-07.json.gz",
+      "sha256": "6fcbe9e77a2be88b89be0ddb86abc9a5ea7620477489678616616551ed08f354",
+      "rate": 6,
+      "block": 3,
+      "orders": 253,
+      "measured": 180,
+      "finishedInWindow": 53,
+      "completedRps": 1.7667,
+      "p50Ms": 49685.566,
+      "p95Ms": 53706.192,
+      "p99Ms": 54123.706,
+      "iqrMs": 3708.429,
+      "backlogAtStart": 56,
+      "backlogAtEnd": 183,
+      "drainSeconds": 47.72,
+      "retries": 0,
+      "resourcesMean": {
+        "cpuFraction": {
+          "account": 0.02101,
+          "settlement": 0.00933,
+          "order": 0.018,
+          "custody": 0.01692,
+          "orchestrator": 0.02117
+        },
+        "heapBytes": {
+          "account": 57887541.33333,
+          "custody": 62590168.53333,
+          "orchestrator": 58690125.86667,
+          "order": 48728793.6,
+          "settlement": 51372817.06667
+        }
+      }
+    },
+    {
+      "file": "round-08.json.gz",
+      "sha256": "f4a458cb931f97fdc793423de894035a922c636eca80a8ad7c70ec7376ced81c",
+      "rate": 1,
+      "block": 3,
+      "orders": 42,
+      "measured": 30,
+      "finishedInWindow": 29,
+      "completedRps": 0.9667,
+      "p50Ms": 5846.839,
+      "p95Ms": 6479.074,
+      "p99Ms": 6499.915,
+      "iqrMs": 387.059,
+      "backlogAtStart": 5,
+      "backlogAtEnd": 6,
+      "drainSeconds": 5.131,
+      "retries": 0,
+      "resourcesMean": {
+        "cpuFraction": {
+          "account": 0.00593,
+          "settlement": 0.00367,
+          "order": 0.00517,
+          "custody": 0.00692,
+          "orchestrator": 0.00617
+        },
+        "heapBytes": {
+          "account": 53148701.86667,
+          "custody": 60258781.86667,
+          "orchestrator": 62113108.26667,
+          "order": 63580970.66667,
+          "settlement": 54522597.33333
+        }
+      }
+    },
+    {
+      "file": "round-09.json.gz",
+      "sha256": "c83aa0ecba4871837f52561ee47e017dee2d5d306b8e3a1b3eed6c7f66ecc386",
+      "rate": 3,
+      "block": 3,
+      "orders": 126,
+      "measured": 90,
+      "finishedInWindow": 87,
+      "completedRps": 2.9,
+      "p50Ms": 7014.06,
+      "p95Ms": 8120.708,
+      "p99Ms": 8261.642,
+      "iqrMs": 842.936,
+      "backlogAtStart": 21,
+      "backlogAtEnd": 24,
+      "drainSeconds": 5.592,
+      "retries": 0,
+      "resourcesMean": {
+        "cpuFraction": {
+          "account": 0.01237,
+          "settlement": 0.00483,
+          "order": 0.014,
+          "custody": 0.0165,
+          "orchestrator": 0.01233
+        },
+        "heapBytes": {
+          "account": 62768349.86667,
+          "custody": 61715108.26667,
+          "orchestrator": 57810349.33333,
+          "order": 46674178.13333,
+          "settlement": 47386830.93333
+        }
+      }
+    },
+    {
+      "file": "round-10.json.gz",
+      "sha256": "08c17b844de31e5e28ce4036121094ed2c7bbdd49ff1324d8e72b0f88fa555f7",
+      "rate": 6,
+      "block": 4,
+      "orders": 253,
+      "measured": 180,
+      "finishedInWindow": 49,
+      "completedRps": 1.6333,
+      "p50Ms": 49961.31,
+      "p95Ms": 52334.188,
+      "p99Ms": 52889.128,
+      "iqrMs": 4651.364,
+      "backlogAtStart": 62,
+      "backlogAtEnd": 193,
+      "drainSeconds": 47.026,
+      "retries": 0,
+      "resourcesMean": {
+        "cpuFraction": {
+          "account": 0.02085,
+          "settlement": 0.00725,
+          "order": 0.01658,
+          "custody": 0.01583,
+          "orchestrator": 0.01192
+        },
+        "heapBytes": {
+          "account": 62690315.73333,
+          "custody": 65275300.26667,
+          "orchestrator": 58794940.8,
+          "order": 46375453.86667,
+          "settlement": 54379520.0
+        }
+      }
+    },
+    {
+      "file": "round-11.json.gz",
+      "sha256": "0b9bb169d7bce385d41753b483f58878ff6c9ba7c5de0c122df486aaf865d6f6",
+      "rate": 3,
+      "block": 4,
+      "orders": 127,
+      "measured": 90,
+      "finishedInWindow": 86,
+      "completedRps": 2.8667,
+      "p50Ms": 7795.613,
+      "p95Ms": 9170.264,
+      "p99Ms": 9291.719,
+      "iqrMs": 1206.595,
+      "backlogAtStart": 17,
+      "backlogAtEnd": 21,
+      "drainSeconds": 7.383,
+      "retries": 0,
+      "resourcesMean": {
+        "cpuFraction": {
+          "account": 0.01053,
+          "settlement": 0.00633,
+          "order": 0.01275,
+          "custody": 0.01258,
+          "orchestrator": 0.01283
+        },
+        "heapBytes": {
+          "account": 63319115.73333,
+          "custody": 60634557.86667,
+          "orchestrator": 57194663.46667,
+          "order": 59158107.73333,
+          "settlement": 57460754.13333
+        }
+      }
+    },
+    {
+      "file": "round-12.json.gz",
+      "sha256": "2dc4f2e8c336e8e41e383c2e8ff2870d0a601436689a1ee8a21016e824aa2bcd",
+      "rate": 1,
+      "block": 4,
+      "orders": 42,
+      "measured": 30,
+      "finishedInWindow": 30,
+      "completedRps": 1.0,
+      "p50Ms": 5834.679,
+      "p95Ms": 6548.196,
+      "p99Ms": 6566.194,
+      "iqrMs": 263.609,
+      "backlogAtStart": 5,
+      "backlogAtEnd": 5,
+      "drainSeconds": 4.989,
+      "retries": 0,
+      "resourcesMean": {
+        "cpuFraction": {
+          "account": 0.01376,
+          "settlement": 0.00583,
+          "order": 0.00858,
+          "custody": 0.00955,
+          "orchestrator": 0.00575
+        },
+        "heapBytes": {
+          "account": 70175886.93333,
+          "custody": 56349698.13333,
+          "orchestrator": 52570082.13333,
+          "order": 57905180.8,
+          "settlement": 45515371.73333
+        }
+      }
+    },
+    {
+      "file": "round-13.json.gz",
+      "sha256": "25ce0a5fbc14b23af0036d42ab26c1f15c6d3d65b2158aaf8ec7352d80668ebd",
+      "rate": 6,
+      "block": 5,
+      "orders": 253,
+      "measured": 180,
+      "finishedInWindow": 51,
+      "completedRps": 1.7,
+      "p50Ms": 50550.28,
+      "p95Ms": 53501.058,
+      "p99Ms": 53868.527,
+      "iqrMs": 4330.479,
+      "backlogAtStart": 62,
+      "backlogAtEnd": 191,
+      "drainSeconds": 47.534,
+      "retries": 0,
+      "resourcesMean": {
+        "cpuFraction": {
+          "account": 0.01013,
+          "settlement": 0.00642,
+          "order": 0.0175,
+          "custody": 0.00817,
+          "orchestrator": 0.01108
+        },
+        "heapBytes": {
+          "account": 64340700.8,
+          "custody": 62606747.73333,
+          "orchestrator": 58331493.33333,
+          "order": 42480420.26667,
+          "settlement": 55511773.86667
+        }
+      }
+    },
+    {
+      "file": "round-14.json.gz",
+      "sha256": "ef366464babaf431a7597e2941d9929e21b1afb5d218c826dfe067bb5f80320f",
+      "rate": 1,
+      "block": 5,
+      "orders": 43,
+      "measured": 30,
+      "finishedInWindow": 30,
+      "completedRps": 1.0,
+      "p50Ms": 5903.289,
+      "p95Ms": 6709.882,
+      "p99Ms": 6729.483,
+      "iqrMs": 711.058,
+      "backlogAtStart": 5,
+      "backlogAtEnd": 5,
+      "drainSeconds": 5.234,
+      "retries": 0,
+      "resourcesMean": {
+        "cpuFraction": {
+          "account": 0.00366,
+          "settlement": 0.00333,
+          "order": 0.006,
+          "custody": 0.00442,
+          "orchestrator": 0.00542
+        },
+        "heapBytes": {
+          "account": 61326057.6,
+          "custody": 65478636.8,
+          "orchestrator": 61873340.8,
+          "order": 61970352.0,
+          "settlement": 50770276.8
+        }
+      }
+    },
+    {
+      "file": "round-15.json.gz",
+      "sha256": "458e8f916903f73efe1128329694e141ce4253a17c92cc6d8036b8a206a74201",
+      "rate": 3,
+      "block": 5,
+      "orders": 127,
+      "measured": 90,
+      "finishedInWindow": 88,
+      "completedRps": 2.9333,
+      "p50Ms": 7415.696,
+      "p95Ms": 8279.8,
+      "p99Ms": 8443.729,
+      "iqrMs": 997.362,
+      "backlogAtStart": 21,
+      "backlogAtEnd": 23,
+      "drainSeconds": 5.639,
+      "retries": 0,
+      "resourcesMean": {
+        "cpuFraction": {
+          "account": 0.00852,
+          "settlement": 0.00592,
+          "order": 0.0125,
+          "custody": 0.00775,
+          "orchestrator": 0.01083
+        },
+        "heapBytes": {
+          "account": 63830914.13333,
+          "custody": 65655582.93333,
+          "orchestrator": 58696014.93333,
+          "order": 46147588.8,
+          "settlement": 51399098.13333
+        }
+      }
+    }
+  ]
+}

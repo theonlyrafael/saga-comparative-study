@@ -1,0 +1,12 @@
+{
+  "seed": 20261127,
+  "rates": [
+    2
+  ],
+  "repetitions": 5,
+  "warmupSeconds": 12,
+  "windowSeconds": 100,
+  "drainSeconds": 120,
+  "unitsPerRound": 10000,
+  "unitPriceCents": 2550
+}

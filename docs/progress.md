@@ -1,5 +1,13 @@
 # Progresso — Saga orquestrada
 
+## Piloto de carga e conclusão da modalidade — 27/11/2026
+
+Na branch `perf/orchestrated-load-pilot`, o k6 enviou 3.235 compras em 20 rodadas. O piloto reconciliou todas as ordens, reservas, transferências e liquidações nos cinco bancos PostgreSQL. Das ordens recebidas, 2.500 entraram nas janelas usadas para os percentis. A vazão atingiu o critério definido a 1, 2 e 3 compras/s. O patamar de 3 apresentou a maior variação entre rodadas. A 6 compras/s, a fila cresceu e a drenagem precisou de até 50,98 s.
+
+A referência estável escolhida é de 2 compras/s com 100 s de medição. O piloto encerra o escopo de implementação e validação da Saga orquestrada. O estudo segue com a construção da modalidade coreografada e a futura comparação sob condições equivalentes. [Relatório e arquivos brutos](../experimentos/orquestrada/piloto/relatorio.md) · [Guia de reprodução](piloto-de-carga.md)
+
+Na verificação final passaram os 262 testes Java, os cinco testes do cálculo e da validação do piloto, os cinco testes de contrato e a verificação das 21 rotas do RabbitMQ. A matriz C1–C6 passou novamente com cinco compras liquidadas e três rejeitadas. O ensaio de recuperação também confirmou a retomada após perda de resposta.
+
 ## Cenários de falha C1–C6 — 26/11/2026
 
 Os seis cenários passaram com os cinco serviços, PostgreSQL 17.11, RabbitMQ 4.4.0 e o seed `demo-v1`. Das oito ordens, cinco liquidaram e três foram rejeitadas. Os motivos foram `ATIVO_INSUFICIENTE`, `SALDO_INSUFICIENTE` e `LIQUIDACAO_NEGADA`. Ao final, `CLI001` tinha 888,00 disponíveis, 112,00 consumidos e nenhuma reserva aberta. Recebeu uma unidade de `ATV001` e quatro de `ATV002`. [Evidência por ordem](../experimentos/orquestrada/falhas/2026-11-26.json)

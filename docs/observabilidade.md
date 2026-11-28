@@ -72,5 +72,6 @@ SAGA_TRACE_QUERY_URL=http://127.0.0.1:16686 bash infra/scripts/check-recovery.sh
 O ensaio usa bancos, broker e portas de serviço próprios. Ele consulta as
 amostras SQL, os histogramas expostos e os spans da mesma Saga nos cinco
 serviços para uma liquidação negada e uma compra com reinício e resposta
-perdida. As medições desse ensaio servem à validação funcional. A definição
-das janelas de coleta e a calibração de carga pertencem ao piloto.
+perdida. As medições desse ensaio servem à validação funcional. O piloto usa as
+confirmações persistidas para medir a latência por ordem e as conclusões por
+segundo, além de coletar CPU e heap de cada JVM pelo Prometheus. [Janelas e critérios do piloto](piloto-de-carga.md)
