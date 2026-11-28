@@ -1,6 +1,6 @@
 # saga-comparative-study
 
-Estudo comparativo de Sagas para a compra simulada de um ativo. O desenvolvimento está na modalidade orquestrada. O POST registra a ordem como `RECEBIDA`. Depois da liquidação e das efetivações de saldo e custódia, o GET retorna `LIQUIDADA` com o identificador da liquidação.
+Estudo comparativo de Sagas para a compra simulada de um ativo. A modalidade orquestrada está implementada e validada. O POST registra a ordem como `RECEBIDA`. Depois da liquidação e das efetivações de saldo e custódia, o GET retorna `LIQUIDADA` com o identificador da liquidação.
 
 ## Progresso da Saga orquestrada
 
@@ -50,8 +50,8 @@ Estudo comparativo de Sagas para a compra simulada de um ativo. O desenvolviment
 **Validação de ponta a ponta**
 
 - [x] Executar os seis cenários de falha e conferir ordens, saldo, custódia, liquidação e Saga. [Resultados C1–C6](docs/cenarios-de-falha.md)
-- [ ] Executar o piloto com carga e configurações reproduzíveis.
+- [x] Executar o piloto de carga e registrar os patamares, as latências e a consistência das compras. [Relatório do piloto](experimentos/orquestrada/piloto/relatorio.md)
 
-A modalidade coreografada está prevista para depois da validação da orquestrada.
+A próxima implementação do estudo é a Saga coreografada.
 
 [Histórico e resultados dos testes](docs/progress.md) · [Guia de execução local](docs/execucao-local.md) · [Especificação técnica](docs/specifications/orchestrated-saga-specification.pdf)

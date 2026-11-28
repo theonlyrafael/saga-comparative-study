@@ -88,6 +88,12 @@ Com os cinco serviços ativos no cenário `demo-v1`, execute `bash infra/scripts
 - [x] Retomar compras após queda, atraso ou interrupção da publicação.
 - [x] Validar a disputa pela última unidade de um ativo e a recusa por saldo insuficiente.
 - [x] Reentregar comandos sem duplicar transferências e concluir compensações interrompidas.
-- [ ] Calibrar a carga e as janelas de medição no piloto.
 
 Execute `bash infra/scripts/check-failure-scenarios.sh` na raiz para reproduzir C1–C6. Para verificar uma única falha, passe o identificador do cenário. [Condições de cada teste e evidência registrada](../docs/cenarios-de-falha.md)
+
+## Piloto de carga
+
+- [x] Calibrar os patamares e as janelas com k6, cinco instâncias PostgreSQL e métricas por serviço.
+- [x] Medir as Sagas concluídas por segundo e a latência por ordem, verificar as reservas e reconciliar os saldos após cada rodada.
+
+O piloto encerra a implementação orquestrada. [Relatório e patamares selecionados](../experimentos/orquestrada/piloto/relatorio.md) · [Comandos de reprodução](../docs/piloto-de-carga.md)
